@@ -88,7 +88,10 @@ export default function ArriveScreen() {
         </View>
 
         <View style={styles.altRow}>
-          <Pressable style={styles.altBtn}>
+          <Pressable
+            style={styles.altBtn}
+            onPress={() => router.push({ pathname: '/list-editor', params: { from: 'shop-arrive' } })}
+          >
             <View style={styles.altIcon}>
               <Plus size={14} color={Colors.ink} weight="bold" />
             </View>

@@ -111,7 +111,7 @@ export default function ReviewScreen() {
           </View>
         </View>
 
-        <Pressable style={styles.forgotBtn}>
+        <Pressable style={styles.forgotBtn} onPress={() => router.replace('/shop/scan')}>
           <WarningCircle size={16} color={Colors.muted} weight="regular" />
           <Text style={styles.forgotText}>Forgot something? Scan it now.</Text>
         </Pressable>

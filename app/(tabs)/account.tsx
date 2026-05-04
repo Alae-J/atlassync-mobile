@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import {
   CaretRight,
   User as UserIcon,
@@ -198,7 +199,7 @@ function ProfileTab() {
       </View>
 
       <View style={[styles.section, { paddingTop: 28 }]}>
-        <Pressable style={styles.signOut}>
+        <Pressable style={styles.signOut} onPress={() => router.replace('/auth/login')}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
       </View>
