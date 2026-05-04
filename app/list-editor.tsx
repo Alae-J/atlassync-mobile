@@ -316,10 +316,11 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontFamily: Fonts.serif,
     fontSize: 46,
-    lineHeight: 44,
+    lineHeight: 50,
     letterSpacing: -1.6,
     color: Colors.ink,
     marginTop: 12,
+    includeFontPadding: false,
   },
   heroItalic: { fontFamily: Fonts.serifItalic, color: Colors.amber },
   heroMeta: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted, marginTop: 6 },

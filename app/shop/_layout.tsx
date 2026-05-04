@@ -9,6 +9,19 @@ export default function ShopLayout() {
         contentStyle: { backgroundColor: Colors.cream },
         animation: 'slide_from_right',
       }}
-    />
+    >
+      <Stack.Screen name="arrive" />
+      <Stack.Screen name="scan" />
+      <Stack.Screen name="review" />
+      <Stack.Screen name="walkout" />
+      <Stack.Screen
+        name="substitute"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      />
+    </Stack>
   );
 }

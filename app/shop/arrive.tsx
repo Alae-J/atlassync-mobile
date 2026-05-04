@@ -156,9 +156,10 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontFamily: Fonts.serif,
     fontSize: 44,
-    lineHeight: 42,
+    lineHeight: 48,
     letterSpacing: -1.6,
     color: Colors.ink,
+    includeFontPadding: false,
   },
   heroItalic: { fontFamily: Fonts.serifItalic, color: Colors.amber },
   heroSub: { fontFamily: Fonts.sans, fontSize: 12.5, color: Colors.muted, marginTop: 6 },
