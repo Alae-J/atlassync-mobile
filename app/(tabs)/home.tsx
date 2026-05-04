@@ -2,6 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag } from 'phosphor-react-native';
+import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
 import { TabBar } from '../../src/components/TabBar';
 import { savedLists, productById } from '../../src/data/catalog';
@@ -75,7 +76,7 @@ export default function HomeScreen() {
             contentContainerStyle={styles.railRow}
           >
             {savedLists.map((list, i) => (
-              <Pressable key={list.id} style={styles.listCard}>
+              <Pressable key={list.id} style={styles.listCard} onPress={() => router.push('/list-editor')}>
                 {i === 0 ? (
                   <LinearGradient
                     colors={[Colors.tile, Colors.tileDeep]}
@@ -99,7 +100,7 @@ export default function HomeScreen() {
                 </Text>
               </Pressable>
             ))}
-            <Pressable style={styles.newListCard}>
+            <Pressable style={styles.newListCard} onPress={() => router.push('/list-editor')}>
               <View style={styles.newListIcon}>
                 <Plus size={14} color={Colors.ink} weight="bold" />
               </View>
@@ -147,7 +148,7 @@ function HeroDefault() {
       <Text style={styles.heroTitle}>Start a</Text>
       <Text style={[styles.heroTitle, styles.heroTitleItalic]}>shopping session.</Text>
       <Text style={styles.heroDesc}>Show your QR at the gate. Skip the line on the way out.</Text>
-      <Pressable style={styles.heroCta}>
+      <Pressable style={styles.heroCta} onPress={() => router.push('/shop/arrive')}>
         <QrCode size={16} color={Colors.ink} weight="regular" />
         <Text style={styles.heroCtaText}>Get my QR</Text>
       </Pressable>
@@ -180,7 +181,7 @@ function HeroActive() {
           <Text style={styles.statsValue}>$23.40</Text>
         </View>
       </View>
-      <Pressable style={styles.resumeBtn}>
+      <Pressable style={styles.resumeBtn} onPress={() => router.push('/shop/scan')}>
         <Text style={styles.resumeBtnText}>Resume session</Text>
         <ArrowRight size={14} color={Colors.ink} weight="bold" />
       </Pressable>

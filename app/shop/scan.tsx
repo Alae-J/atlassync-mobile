@@ -92,7 +92,7 @@ export default function ScanScreen() {
       </View>
 
       {justScanned && (
-        <View style={styles.toast}>
+        <Pressable style={styles.toast} onPress={() => router.push('/shop/substitute')}>
           <View style={styles.toastThumb}>
             <LinearGradient
               colors={[Colors.tile, Colors.tileDeep]}
@@ -115,7 +115,7 @@ export default function ScanScreen() {
           <Pressable>
             <Text style={styles.undoText}>Undo</Text>
           </Pressable>
-        </View>
+        </Pressable>
       )}
 
       <View style={[styles.peekSheet, { paddingBottom: insets.bottom + 22 }]}>
