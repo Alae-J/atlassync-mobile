@@ -1,7 +1,17 @@
-import { View, Pressable, Text, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { View, Pressable, StyleSheet } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { House, ClipboardText, ShoppingBag, User } from 'phosphor-react-native';
-import { router, usePathname } from 'expo-router';
+import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows } from '../constants/theme';
 
 export type TabKey = 'home' | 'lists' | 'orders' | 'account';
@@ -20,6 +30,13 @@ const TABS: TabDef[] = [
   { key: 'account', label: 'Account', href: '/(tabs)/account', Icon: User },
 ];
 
+const PILL_TRANSITION = LinearTransition.springify().damping(22).stiffness(220).mass(0.55);
+const TINT_DURATION = 240;
+const ACTIVE_BG = 'rgba(200,122,58,0.14)';
+const INACTIVE_BG = 'rgba(200,122,58,0)';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 interface TabBarProps {
   active: TabKey;
 }
@@ -29,23 +46,68 @@ export function TabBar({ active }: TabBarProps) {
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) + 4 }]}>
       <View style={styles.pill}>
-        {TABS.map((tab) => {
-          const isActive = tab.key === active;
-          const Icon = tab.Icon;
-          return (
-            <Pressable
-              key={tab.key}
-              onPress={() => router.replace(tab.href as never)}
-              style={[styles.tab, isActive && styles.tabActive]}
-              android_ripple={{ color: 'rgba(200,122,58,0.18)', borderless: true }}
-            >
-              <Icon size={18} weight="regular" color={isActive ? Colors.amber : Colors.muted} />
-              {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
-            </Pressable>
-          );
-        })}
+        {TABS.map((tab) => (
+          <TabButton
+            key={tab.key}
+            tab={tab}
+            isActive={tab.key === active}
+            onPress={() => router.replace(tab.href as never)}
+          />
+        ))}
       </View>
     </View>
+  );
+}
+
+interface TabButtonProps {
+  tab: TabDef;
+  isActive: boolean;
+  onPress: () => void;
+}
+
+function TabButton({ tab, isActive, onPress }: TabButtonProps) {
+  const progress = useSharedValue(isActive ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withTiming(isActive ? 1 : 0, { duration: TINT_DURATION });
+  }, [isActive, progress]);
+
+  const tintStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], [INACTIVE_BG, ACTIVE_BG]),
+  }));
+
+  const activeIconStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+  }));
+
+  const Icon = tab.Icon;
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      layout={PILL_TRANSITION}
+      style={[styles.tab, isActive && styles.tabActive, tintStyle]}
+      android_ripple={{ color: 'rgba(200,122,58,0.18)', borderless: true }}
+    >
+      <View style={styles.iconWrap}>
+        <Icon size={18} weight="regular" color={Colors.muted} />
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.iconWrap, activeIconStyle]}
+        >
+          <Icon size={18} weight="regular" color={Colors.amber} />
+        </Animated.View>
+      </View>
+      {isActive && (
+        <Animated.Text
+          entering={FadeIn.duration(180).delay(60)}
+          exiting={FadeOut.duration(120)}
+          style={styles.tabLabel}
+        >
+          {tab.label}
+        </Animated.Text>
+      )}
+    </AnimatedPressable>
   );
 }
 
@@ -76,9 +138,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   tabActive: {
-    paddingLeft: 12,
     paddingRight: 16,
-    backgroundColor: 'rgba(200,122,58,0.14)',
+  },
+  iconWrap: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabLabel: {
     fontFamily: Fonts.sansSemibold,
