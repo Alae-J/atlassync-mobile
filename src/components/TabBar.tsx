@@ -1,12 +1,11 @@
-import { useEffect } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { View, Pressable, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
-  LinearTransition,
-  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,12 +29,8 @@ const TABS: TabDef[] = [
   { key: 'account', label: 'Account', href: '/(tabs)/account', Icon: User },
 ];
 
-const PILL_TRANSITION = LinearTransition.springify().damping(22).stiffness(220).mass(0.55);
-const TINT_DURATION = 240;
-const ACTIVE_BG = 'rgba(200,122,58,0.14)';
-const INACTIVE_BG = 'rgba(200,122,58,0)';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const SPRING = { damping: 22, stiffness: 220, mass: 0.55 };
+const ICON_FADE_MS = 240;
 
 interface TabBarProps {
   active: TabKey;
@@ -43,15 +38,60 @@ interface TabBarProps {
 
 export function TabBar({ active }: TabBarProps) {
   const insets = useSafeAreaInsets();
+
+  const layoutsRef = useRef<Map<TabKey, { x: number; width: number }>>(new Map());
+  const indicatorX = useSharedValue(0);
+  const indicatorW = useSharedValue(0);
+  const seededRef = useRef(false);
+
+  useEffect(() => {
+    const lay = layoutsRef.current.get(active);
+    if (!lay) return;
+    if (!seededRef.current) {
+      indicatorX.value = lay.x;
+      indicatorW.value = lay.width;
+      seededRef.current = true;
+    } else {
+      indicatorX.value = withSpring(lay.x, SPRING);
+      indicatorW.value = withSpring(lay.width, SPRING);
+    }
+  }, [active, indicatorX, indicatorW]);
+
+  const reportLayout = useCallback(
+    (key: TabKey, x: number, width: number) => {
+      const prev = layoutsRef.current.get(key);
+      layoutsRef.current.set(key, { x, width });
+      if (key !== active) return;
+      if (!seededRef.current) {
+        indicatorX.value = x;
+        indicatorW.value = width;
+        seededRef.current = true;
+        return;
+      }
+      if (!prev || prev.x !== x || prev.width !== width) {
+        indicatorX.value = withSpring(x, SPRING);
+        indicatorW.value = withSpring(width, SPRING);
+      }
+    },
+    [active, indicatorX, indicatorW],
+  );
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorX.value }],
+    width: indicatorW.value,
+  }));
+
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) + 4 }]}>
       <View style={styles.pill}>
+        <Animated.View pointerEvents="none" style={[styles.indicator, indicatorStyle]} />
         {TABS.map((tab) => (
           <TabButton
             key={tab.key}
             tab={tab}
             isActive={tab.key === active}
             onPress={() => router.replace(tab.href as never)}
+            onLayout={reportLayout}
           />
         ))}
       </View>
@@ -63,30 +103,30 @@ interface TabButtonProps {
   tab: TabDef;
   isActive: boolean;
   onPress: () => void;
+  onLayout: (key: TabKey, x: number, width: number) => void;
 }
 
-function TabButton({ tab, isActive, onPress }: TabButtonProps) {
-  const progress = useSharedValue(isActive ? 1 : 0);
+function TabButton({ tab, isActive, onPress, onLayout }: TabButtonProps) {
+  const colorProgress = useSharedValue(isActive ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withTiming(isActive ? 1 : 0, { duration: TINT_DURATION });
-  }, [isActive, progress]);
+    colorProgress.value = withTiming(isActive ? 1 : 0, { duration: ICON_FADE_MS });
+  }, [isActive, colorProgress]);
 
-  const tintStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [INACTIVE_BG, ACTIVE_BG]),
-  }));
+  const activeIconStyle = useAnimatedStyle(() => ({ opacity: colorProgress.value }));
 
-  const activeIconStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-  }));
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout;
+    onLayout(tab.key, x, width);
+  };
 
   const Icon = tab.Icon;
 
   return (
-    <AnimatedPressable
+    <Pressable
       onPress={onPress}
-      layout={PILL_TRANSITION}
-      style={[styles.tab, isActive && styles.tabActive, tintStyle]}
+      onLayout={handleLayout}
+      style={[styles.tab, isActive && styles.tabActive]}
       android_ripple={{ color: 'rgba(200,122,58,0.18)', borderless: true }}
     >
       <View style={styles.iconWrap}>
@@ -100,14 +140,14 @@ function TabButton({ tab, isActive, onPress }: TabButtonProps) {
       </View>
       {isActive && (
         <Animated.Text
-          entering={FadeIn.duration(180).delay(60)}
+          entering={FadeIn.duration(220).delay(80)}
           exiting={FadeOut.duration(120)}
           style={styles.tabLabel}
         >
           {tab.label}
         </Animated.Text>
       )}
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
@@ -128,6 +168,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.line,
     ...Shadows.navBar,
+  },
+  indicator: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    left: 0,
+    backgroundColor: 'rgba(200,122,58,0.14)',
+    borderRadius: Radius.pill,
   },
   tab: {
     height: 44,
