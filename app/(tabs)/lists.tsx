@@ -3,7 +3,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, CaretRight } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
-import { TabBar } from '../../src/components/TabBar';
 import { savedLists, productById, type SavedList } from '../../src/data/catalog';
 
 export default function ListsScreen() {
@@ -46,8 +45,6 @@ export default function ListsScreen() {
 
         <Text style={styles.footnote}>Lists never expire — they wait for you.</Text>
       </ScrollView>
-
-      <TabBar active="lists" />
     </View>
   );
 }

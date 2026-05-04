@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
-import { TabBar } from '../../src/components/TabBar';
 import { savedLists, productById } from '../../src/data/catalog';
 
 type HeroState = 'default' | 'active';
@@ -129,8 +128,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-
-      <TabBar active="home" />
     </View>
   );
 }

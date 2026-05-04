@@ -2,7 +2,6 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShoppingBag } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
-import { TabBar } from '../../src/components/TabBar';
 
 const orders = [
   { date: 'Last Saturday', total: 42.18, items: 12, store: 'Aldi · Mansoura' },
@@ -50,8 +49,6 @@ export default function OrdersScreen() {
           ))}
         </View>
       </ScrollView>
-
-      <TabBar active="orders" />
     </View>
   );
 }

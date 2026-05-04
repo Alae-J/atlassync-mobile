@@ -25,7 +25,6 @@ import {
   Plus,
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
-import { TabBar } from '../../src/components/TabBar';
 
 type AccountTab = 'profile' | 'payments' | 'preferences' | 'help';
 
@@ -100,8 +99,6 @@ export default function AccountScreen() {
         {active === 'preferences' && <PreferencesTab />}
         {active === 'help' && <HelpTab />}
       </ScrollView>
-
-      <TabBar active="account" />
     </View>
   );
 }
