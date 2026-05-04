@@ -15,14 +15,7 @@ export default function SubstituteScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={[Colors.dark, Colors.ember, Colors.dark]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill as never}
-      />
-      <View style={styles.dimmer} />
-      <Pressable style={styles.dismissArea} onPress={() => router.back()} />
+      <Pressable style={styles.dimmer} onPress={() => router.back()} />
 
       <View style={[styles.sheet, { paddingBottom: insets.bottom + 28 }]}>
         <View style={styles.handle} />
@@ -98,7 +91,6 @@ export default function SubstituteScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   dimmer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
-  dismissArea: { ...StyleSheet.absoluteFillObject },
 
   sheet: {
     backgroundColor: Colors.cream,
