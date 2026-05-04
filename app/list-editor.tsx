@@ -1,0 +1,628 @@
+import { useState } from 'react';
+import { View, Text, TextInput, ScrollView, Pressable, Modal, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowLeft, ArrowRight, DotsThreeVertical, Plus, Minus, MagnifyingGlass, X } from 'phosphor-react-native';
+import { router } from 'expo-router';
+import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../src/constants/theme';
+import { TabBar } from '../src/components/TabBar';
+import { products, productById, productTags, type Product } from '../src/data/catalog';
+
+interface ListItem {
+  id: string;
+  qty: number;
+}
+
+const initialItems: ListItem[] = [
+  { id: 'banana', qty: 2 },
+  { id: 'milk', qty: 1 },
+  { id: 'avocado', qty: 4 },
+  { id: 'chicken', qty: 1 },
+  { id: 'olive-oil', qty: 1 },
+];
+
+export default function ListEditorScreen() {
+  const insets = useSafeAreaInsets();
+  const [items, setItems] = useState<ListItem[]>(initialItems);
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [qtyTarget, setQtyTarget] = useState<string | null>(null);
+  const [pendingQty, setPendingQty] = useState(1);
+  const [query, setQuery] = useState('');
+
+  const totalEst = items.reduce((sum, it) => sum + (productById(it.id)?.price ?? 0) * it.qty, 0);
+
+  const addItem = (id: string, qty: number) => {
+    setItems((prev) => {
+      const existing = prev.find((x) => x.id === id);
+      if (existing) return prev.map((x) => (x.id === id ? { ...x, qty: x.qty + qty } : x));
+      return [...prev, { id, qty }];
+    });
+  };
+
+  const updateQty = (id: string, delta: number) => {
+    setItems((prev) =>
+      prev
+        .map((x) => (x.id === id ? { ...x, qty: Math.max(0, x.qty + delta) } : x))
+        .filter((x) => x.qty > 0),
+    );
+  };
+
+  const openQtyModal = (id: string) => {
+    setQtyTarget(id);
+    setPendingQty(1);
+    setBrowseOpen(false);
+  };
+
+  const confirmQty = () => {
+    if (qtyTarget) addItem(qtyTarget, pendingQty);
+    setQtyTarget(null);
+  };
+
+  const filteredProducts = (
+    query
+      ? products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
+      : products
+  ).filter((p) => !items.find((it) => it.id === p.id));
+
+  const qtyProduct = qtyTarget ? productById(qtyTarget) : null;
+
+  return (
+    <View style={styles.root}>
+      <LinearGradient
+        colors={['rgba(200,122,58,0.08)', 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.5 }}
+        style={styles.bgWash}
+        pointerEvents="none"
+      />
+
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+        <View style={styles.headerRow}>
+          <Pressable style={styles.iconBtn} onPress={() => router.back()}>
+            <ArrowLeft size={16} color={Colors.ink} weight="bold" />
+          </Pressable>
+          <Text style={styles.headerLabel}>EDITING LIST</Text>
+          <Pressable style={styles.iconBtn}>
+            <DotsThreeVertical size={16} color={Colors.ink} weight="bold" />
+          </Pressable>
+        </View>
+        <Text style={styles.heroTitle}>
+          Saturday <Text style={styles.heroItalic}>haul.</Text>
+        </Text>
+        <Text style={styles.heroMeta}>
+          {items.length} items lined up · est. <Text style={styles.heroMetaStrong}>${totalEst.toFixed(2)}</Text>
+        </Text>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: TabBarHeight + insets.bottom + (items.length > 0 ? 100 : 24) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable style={styles.addCta} onPress={() => setBrowseOpen(true)}>
+          <View style={styles.addIcon}>
+            <Plus size={16} color={Colors.ink} weight="bold" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.addCtaTitle}>Add items</Text>
+            <Text style={styles.addCtaSub}>Search the catalog or pick from staples</Text>
+          </View>
+        </Pressable>
+
+        {items.length === 0 && (
+          <Text style={styles.emptyText}>Empty. Tap "Add items" above to start.</Text>
+        )}
+
+        {items.map((it) => {
+          const p = productById(it.id);
+          if (!p) return null;
+          return (
+            <View key={it.id} style={styles.itemRow}>
+              <View style={styles.itemThumb}>
+                <Text style={styles.itemEmoji}>{p.emoji}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemName} numberOfLines={1}>{p.name}</Text>
+                <View style={styles.itemMetaRow}>
+                  <View style={styles.tagPill}>
+                    <Text style={styles.tagPillText}>{p.tag}</Text>
+                  </View>
+                  <Text style={styles.itemPrice}>${(p.price * it.qty).toFixed(2)}</Text>
+                </View>
+              </View>
+              <View style={styles.stepper}>
+                <Pressable style={styles.stepperBtn} onPress={() => updateQty(it.id, -1)}>
+                  <Minus size={12} color={Colors.ink} weight="bold" />
+                </Pressable>
+                <Text style={styles.stepperQty}>{it.qty}</Text>
+                <Pressable style={styles.stepperBtnFilled} onPress={() => updateQty(it.id, 1)}>
+                  <Plus size={12} color={Colors.cream} weight="bold" />
+                </Pressable>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      {items.length > 0 && (
+        <View style={[styles.totalBar, { bottom: TabBarHeight + insets.bottom + 14 }]}>
+          <View>
+            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={styles.totalAmount}>${totalEst.toFixed(2)}</Text>
+          </View>
+          <Pressable style={styles.saveBtn}>
+            <Text style={styles.saveBtnText}>Save & go</Text>
+            <ArrowRight size={14} color={Colors.ink} weight="bold" />
+          </Pressable>
+        </View>
+      )}
+
+      <TabBar active="lists" />
+
+      <Modal
+        visible={browseOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setBrowseOpen(false)}
+      >
+        <Pressable style={styles.scrim} onPress={() => setBrowseOpen(false)}>
+          <Pressable
+            style={[styles.sheet, styles.browseSheet, { paddingBottom: insets.bottom + 12 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.handle} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>
+                Add to <Text style={styles.sheetTitleItalic}>list</Text>
+              </Text>
+              <Pressable style={styles.closeBtn} onPress={() => setBrowseOpen(false)}>
+                <X size={14} color={Colors.ink} weight="bold" />
+              </Pressable>
+            </View>
+            <View style={styles.searchRow}>
+              <MagnifyingGlass size={16} color={Colors.muted} weight="regular" />
+              <TextInput
+                placeholder="Search products…"
+                placeholderTextColor={Colors.muted}
+                value={query}
+                onChangeText={setQuery}
+                style={styles.searchInput}
+                autoFocus
+              />
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagRow}>
+              {productTags.map((t) => (
+                <Pressable key={t} style={styles.tagChip}>
+                  <Text style={styles.tagChipText}>{t}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.searchResults} showsVerticalScrollIndicator={false}>
+              {filteredProducts.map((p) => (
+                <ProductPickRow key={p.id} product={p} onPress={() => openQtyModal(p.id)} />
+              ))}
+              {filteredProducts.length === 0 && (
+                <Text style={styles.noMatch}>Nothing matches "{query}".</Text>
+              )}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={!!qtyTarget && !!qtyProduct}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setQtyTarget(null)}
+      >
+        <Pressable style={styles.scrim} onPress={() => setQtyTarget(null)}>
+          {qtyProduct && (
+            <Pressable
+              style={[styles.sheet, styles.qtySheet, { paddingBottom: insets.bottom + 24 }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.handle} />
+              <View style={styles.qtyHeader}>
+                <View style={styles.qtyThumb}>
+                  <Text style={styles.qtyEmoji}>{qtyProduct.emoji}</Text>
+                </View>
+                <View>
+                  <Text style={styles.qtyName}>{qtyProduct.name}</Text>
+                  <Text style={styles.qtyMeta}>
+                    ${qtyProduct.price.toFixed(2)} per {qtyProduct.unit} · {qtyProduct.tag}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.qtyControls}>
+                <Pressable
+                  style={styles.qtyCircleBtn}
+                  onPress={() => setPendingQty((q) => Math.max(1, q - 1))}
+                >
+                  <Minus size={18} color={Colors.ink} weight="bold" />
+                </Pressable>
+                <View style={styles.qtyValueRow}>
+                  <Text style={styles.qtyValue}>{pendingQty}</Text>
+                  <Text style={styles.qtyUnit}>{qtyProduct.unit}</Text>
+                </View>
+                <Pressable
+                  style={[styles.qtyCircleBtn, styles.qtyCircleBtnFilled]}
+                  onPress={() => setPendingQty((q) => q + 1)}
+                >
+                  <Plus size={18} color={Colors.cream} weight="bold" />
+                </Pressable>
+              </View>
+              <View style={styles.qtySubtotal}>
+                <Text style={styles.qtySubtotalLabel}>Subtotal</Text>
+                <Text style={styles.qtySubtotalValue}>
+                  ${(qtyProduct.price * pendingQty).toFixed(2)}
+                </Text>
+              </View>
+              <Pressable style={styles.confirmBtn} onPress={confirmQty}>
+                <Text style={styles.confirmBtnText}>Add to list</Text>
+              </Pressable>
+            </Pressable>
+          )}
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+function ProductPickRow({ product, onPress }: { product: Product; onPress: () => void }) {
+  return (
+    <Pressable style={styles.pickRow} onPress={onPress}>
+      <View style={styles.pickThumb}>
+        <Text style={styles.pickEmoji}>{product.emoji}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pickName}>{product.name}</Text>
+        <Text style={styles.pickMeta}>
+          {product.tag} · ${product.price.toFixed(2)}/{product.unit}
+        </Text>
+      </View>
+      <View style={styles.pickAddBtn}>
+        <Plus size={14} color={Colors.cream} weight="bold" />
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.cream },
+  bgWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 320 },
+
+  header: { paddingHorizontal: 24, paddingBottom: 12 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.inkGlassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLabel: {
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: Colors.muted,
+  },
+  heroTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 46,
+    lineHeight: 44,
+    letterSpacing: -1.6,
+    color: Colors.ink,
+    marginTop: 12,
+  },
+  heroItalic: { fontFamily: Fonts.serifItalic, color: Colors.amber },
+  heroMeta: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted, marginTop: 6 },
+  heroMetaStrong: { fontFamily: Fonts.sansMedium, color: Colors.ink },
+
+  list: { paddingHorizontal: 24, paddingTop: 12 },
+
+  addCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderStyle: 'dashed',
+    borderRadius: Radius.xl,
+    padding: 14,
+    marginBottom: 12,
+  },
+  addIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.inkGlassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addCtaTitle: { fontFamily: Fonts.sansMedium, fontSize: 13.5, color: Colors.ink },
+  addCtaSub: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted, marginTop: 2 },
+
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 40,
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: Colors.muted,
+  },
+
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.xl,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.lineFaint,
+    ...Shadows.card,
+  },
+  itemThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: Colors.tile,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemEmoji: { fontSize: 26 },
+  itemName: { fontFamily: Fonts.sansMedium, fontSize: 14.5, color: Colors.ink },
+  itemMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  tagPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(45,90,61,0.10)',
+  },
+  tagPillText: {
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 10,
+    letterSpacing: 0.3,
+    color: Colors.accent,
+  },
+  itemPrice: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted },
+
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.cream,
+    borderRadius: Radius.pill,
+    padding: 3,
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnFilled: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperQty: {
+    minWidth: 22,
+    textAlign: 'center',
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+
+  totalBar: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    backgroundColor: Colors.ink,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...Shadows.cta,
+  },
+  totalLabel: {
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: 'rgba(244,237,224,0.6)',
+  },
+  totalAmount: {
+    fontFamily: Fonts.serif,
+    fontSize: 22,
+    letterSpacing: -0.5,
+    color: Colors.cream,
+    marginTop: 2,
+  },
+  saveBtn: {
+    backgroundColor: Colors.amber,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    ...Shadows.amberCta,
+  },
+  saveBtnText: { fontFamily: Fonts.sansSemibold, fontSize: 13, color: Colors.ink },
+
+  scrim: { flex: 1, backgroundColor: Colors.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: Colors.cream, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 14 },
+  browseSheet: { height: '78%' },
+  qtySheet: { paddingHorizontal: 24, paddingTop: 14 },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.line,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+
+  sheetHeader: {
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sheetTitle: { fontFamily: Fonts.serif, fontSize: 26, letterSpacing: -0.6, color: Colors.ink },
+  sheetTitleItalic: { fontFamily: Fonts.serifItalic, color: Colors.amber },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.inkGlassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  searchRow: {
+    marginHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 46,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: Fonts.sans,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  tagRow: { paddingHorizontal: 24, paddingVertical: 12, gap: 8 },
+  tagChip: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  tagChipText: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Colors.ink },
+
+  searchResults: { paddingHorizontal: 24, paddingBottom: 24 },
+  pickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.lineFaint,
+  },
+  pickThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: Colors.tile,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickEmoji: { fontSize: 22 },
+  pickName: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.ink },
+  pickMeta: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted, marginTop: 2 },
+  pickAddBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noMatch: {
+    textAlign: 'center',
+    paddingVertical: 30,
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: Colors.muted,
+  },
+
+  qtyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 22,
+  },
+  qtyThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: Colors.tile,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyEmoji: { fontSize: 34 },
+  qtyName: { fontFamily: Fonts.serif, fontSize: 24, lineHeight: 26, letterSpacing: -0.4, color: Colors.ink },
+  qtyMeta: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted, marginTop: 4 },
+  qtyControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+  },
+  qtyCircleBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.card,
+  },
+  qtyCircleBtnFilled: {
+    backgroundColor: Colors.ink,
+    borderColor: Colors.ink,
+  },
+  qtyValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  qtyValue: { fontFamily: Fonts.serif, fontSize: 72, lineHeight: 72, letterSpacing: -2, color: Colors.ink },
+  qtyUnit: { fontFamily: Fonts.sans, fontSize: 18, color: Colors.muted },
+  qtySubtotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    marginBottom: 14,
+  },
+  qtySubtotalLabel: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted },
+  qtySubtotalValue: { fontFamily: Fonts.serif, fontSize: 22, color: Colors.ink },
+  confirmBtn: {
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: Colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.cta,
+  },
+  confirmBtnText: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.cream },
+});
