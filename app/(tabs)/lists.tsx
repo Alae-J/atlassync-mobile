@@ -52,7 +52,10 @@ export default function ListsScreen() {
 function ListRow({ list }: { list: SavedList }) {
   const firstEmoji = list.items[0] ? productById(list.items[0])?.emoji : '🛒';
   return (
-    <Pressable style={styles.listRow} onPress={() => router.push('/list-editor')}>
+    <Pressable
+      style={styles.listRow}
+      onPress={() => router.push({ pathname: '/list-editor', params: { id: list.id } })}
+    >
       <View style={styles.avatarWrap}>
         <Text style={styles.avatarEmoji}>{firstEmoji}</Text>
         <View style={styles.avatarBadge}>

@@ -1,19 +1,19 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Modal, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, DotsThreeVertical, Plus, Minus, MagnifyingGlass, X } from 'phosphor-react-native';
-import { router } from 'expo-router';
+import { ArrowLeft, ArrowRight, DotsThreeVertical, Plus, Minus, MagnifyingGlass, X, PencilSimple, Trash } from 'phosphor-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../src/constants/theme';
 import { TabBar } from '../src/components/TabBar';
-import { products, productById, productTags, type Product } from '../src/data/catalog';
+import { products, productById, productTags, savedLists, type Product } from '../src/data/catalog';
 
 interface ListItem {
   id: string;
   qty: number;
 }
 
-const initialItems: ListItem[] = [
+const FALLBACK_ITEMS: ListItem[] = [
   { id: 'banana', qty: 2 },
   { id: 'milk', qty: 1 },
   { id: 'avocado', qty: 4 },
@@ -21,13 +21,40 @@ const initialItems: ListItem[] = [
   { id: 'olive-oil', qty: 1 },
 ];
 
+type EditorOrigin = 'shop-arrive' | 'lists';
+
 export default function ListEditorScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ id?: string; from?: string }>();
+  const origin: EditorOrigin = params.from === 'shop-arrive' ? 'shop-arrive' : 'lists';
+
+  const sourceList = useMemo(
+    () => (params.id ? savedLists.find((l) => l.id === params.id) : undefined),
+    [params.id],
+  );
+
+  const initialItems = useMemo<ListItem[]>(() => {
+    if (sourceList) return sourceList.items.map((id) => ({ id, qty: 1 }));
+    return params.id ? [] : FALLBACK_ITEMS;
+  }, [sourceList, params.id]);
+
+  const heroTitle = sourceList?.name ?? (params.id ? 'New list' : 'Saturday haul');
+
   const [items, setItems] = useState<ListItem[]>(initialItems);
+  const [name, setName] = useState(heroTitle);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [qtyTarget, setQtyTarget] = useState<string | null>(null);
   const [pendingQty, setPendingQty] = useState(1);
   const [query, setQuery] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameDraft, setRenameDraft] = useState(heroTitle);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const exit = () => {
+    if (origin === 'shop-arrive') router.replace('/shop/arrive');
+    else router.replace('/(tabs)/lists');
+  };
 
   const totalEst = items.reduce((sum, it) => sum + (productById(it.id)?.price ?? 0) * it.qty, 0);
 
@@ -78,17 +105,15 @@ export default function ListEditorScreen() {
 
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <View style={styles.headerRow}>
-          <Pressable style={styles.iconBtn} onPress={() => router.back()}>
+          <Pressable style={styles.iconBtn} onPress={exit}>
             <ArrowLeft size={16} color={Colors.ink} weight="bold" />
           </Pressable>
           <Text style={styles.headerLabel}>EDITING LIST</Text>
-          <Pressable style={styles.iconBtn}>
+          <Pressable style={styles.iconBtn} onPress={() => setMenuOpen(true)}>
             <DotsThreeVertical size={16} color={Colors.ink} weight="bold" />
           </Pressable>
         </View>
-        <Text style={styles.heroTitle}>
-          Saturday <Text style={styles.heroItalic}>haul.</Text>
-        </Text>
+        <Text style={styles.heroTitle}>{name}<Text style={styles.heroItalic}>.</Text></Text>
         <Text style={styles.heroMeta}>
           {items.length} items lined up · est. <Text style={styles.heroMetaStrong}>${totalEst.toFixed(2)}</Text>
         </Text>
@@ -152,7 +177,7 @@ export default function ListEditorScreen() {
             <Text style={styles.totalLabel}>TOTAL</Text>
             <Text style={styles.totalAmount}>${totalEst.toFixed(2)}</Text>
           </View>
-          <Pressable style={styles.saveBtn}>
+          <Pressable style={styles.saveBtn} onPress={exit}>
             <Text style={styles.saveBtnText}>Save & go</Text>
             <ArrowRight size={14} color={Colors.ink} weight="bold" />
           </Pressable>
@@ -264,6 +289,125 @@ export default function ListEditorScreen() {
               </Pressable>
             </Pressable>
           )}
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <Pressable style={styles.scrim} onPress={() => setMenuOpen(false)}>
+          <Pressable
+            style={[styles.menuSheet, { paddingBottom: insets.bottom + 24 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.handle} />
+            <Pressable
+              style={styles.menuRow}
+              onPress={() => {
+                setMenuOpen(false);
+                setRenameDraft(name);
+                setRenameOpen(true);
+              }}
+            >
+              <View style={styles.menuRowIcon}>
+                <PencilSimple size={16} color={Colors.ink} weight="regular" />
+              </View>
+              <Text style={styles.menuRowLabel}>Rename list</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.menuRow, styles.menuRowDestructive]}
+              onPress={() => {
+                setMenuOpen(false);
+                setConfirmDelete(true);
+              }}
+            >
+              <View style={[styles.menuRowIcon, styles.menuRowIconDestructive]}>
+                <Trash size={16} color={Colors.danger} weight="regular" />
+              </View>
+              <Text style={[styles.menuRowLabel, styles.menuRowLabelDestructive]}>Delete list</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={renameOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenameOpen(false)}
+      >
+        <Pressable style={styles.scrim} onPress={() => setRenameOpen(false)}>
+          <Pressable
+            style={[styles.alertSheet, { paddingBottom: insets.bottom + 24 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.handle} />
+            <Text style={styles.alertTitle}>
+              Rename <Text style={styles.alertTitleItalic}>list</Text>
+            </Text>
+            <TextInput
+              value={renameDraft}
+              onChangeText={setRenameDraft}
+              placeholder="List name"
+              placeholderTextColor={Colors.muted}
+              style={styles.renameInput}
+              autoFocus
+              maxLength={48}
+            />
+            <View style={styles.alertActions}>
+              <Pressable style={styles.alertBtnGhost} onPress={() => setRenameOpen(false)}>
+                <Text style={styles.alertBtnGhostText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={styles.alertBtnPrimary}
+                onPress={() => {
+                  if (renameDraft.trim()) setName(renameDraft.trim());
+                  setRenameOpen(false);
+                }}
+              >
+                <Text style={styles.alertBtnPrimaryText}>Save</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={confirmDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmDelete(false)}
+      >
+        <Pressable style={styles.scrim} onPress={() => setConfirmDelete(false)}>
+          <Pressable
+            style={[styles.alertSheet, { paddingBottom: insets.bottom + 24 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.handle} />
+            <Text style={styles.alertTitle}>
+              Delete <Text style={styles.alertTitleItalic}>{name}</Text>?
+            </Text>
+            <Text style={styles.alertBody}>
+              This list and its {items.length} items will be removed. You can't undo this.
+            </Text>
+            <View style={styles.alertActions}>
+              <Pressable style={styles.alertBtnGhost} onPress={() => setConfirmDelete(false)}>
+                <Text style={styles.alertBtnGhostText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={styles.alertBtnDanger}
+                onPress={() => {
+                  setConfirmDelete(false);
+                  exit();
+                }}
+              >
+                <Text style={styles.alertBtnDangerText}>Delete</Text>
+              </Pressable>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -626,4 +770,99 @@ const styles = StyleSheet.create({
     ...Shadows.cta,
   },
   confirmBtnText: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.cream },
+
+  menuSheet: {
+    backgroundColor: Colors.cream,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 24,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    borderRadius: Radius.lg,
+  },
+  menuRowDestructive: {},
+  menuRowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.inkGlassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuRowIconDestructive: { backgroundColor: 'rgba(184,69,55,0.10)' },
+  menuRowLabel: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.ink },
+  menuRowLabelDestructive: { color: Colors.danger },
+
+  alertSheet: {
+    backgroundColor: Colors.cream,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 14,
+  },
+  alertTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.6,
+    color: Colors.ink,
+    marginBottom: 10,
+    includeFontPadding: false,
+  },
+  alertTitleItalic: { fontFamily: Fonts.serifItalic, color: Colors.amber },
+  alertBody: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    lineHeight: 19.5,
+    color: Colors.muted,
+    marginBottom: 18,
+  },
+  renameInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 50,
+    fontFamily: Fonts.sans,
+    fontSize: 15,
+    color: Colors.ink,
+    marginBottom: 18,
+  },
+  alertActions: { flexDirection: 'row', gap: 8 },
+  alertBtnGhost: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertBtnGhostText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.muted },
+  alertBtnPrimary: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: Colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertBtnPrimaryText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.cream },
+  alertBtnDanger: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: Colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertBtnDangerText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.cream },
 });
