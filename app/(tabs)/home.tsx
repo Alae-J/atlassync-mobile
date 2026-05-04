@@ -64,7 +64,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>
               Your <Text style={styles.sectionTitleItalic}>lists</Text>
             </Text>
-            <Pressable style={styles.sectionLink}>
+            <Pressable style={styles.sectionLink} onPress={() => router.push('/(tabs)/lists')}>
               <Text style={styles.sectionLinkText}>See all</Text>
               <CaretRight size={11} color={Colors.muted} weight="bold" />
             </Pressable>
@@ -75,7 +75,11 @@ export default function HomeScreen() {
             contentContainerStyle={styles.railRow}
           >
             {savedLists.map((list, i) => (
-              <Pressable key={list.id} style={styles.listCard} onPress={() => router.push('/list-editor')}>
+              <Pressable
+                key={list.id}
+                style={styles.listCard}
+                onPress={() => router.push({ pathname: '/list-editor', params: { id: list.id } })}
+              >
                 {i === 0 ? (
                   <LinearGradient
                     colors={[Colors.tile, Colors.tileDeep]}
@@ -99,7 +103,10 @@ export default function HomeScreen() {
                 </Text>
               </Pressable>
             ))}
-            <Pressable style={styles.newListCard} onPress={() => router.push('/list-editor')}>
+            <Pressable
+              style={styles.newListCard}
+              onPress={() => router.push('/list-editor')}
+            >
               <View style={styles.newListIcon}>
                 <Plus size={14} color={Colors.ink} weight="bold" />
               </View>
@@ -109,12 +116,18 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Recent <Text style={styles.sectionTitleItalic}>shops</Text>
-          </Text>
-          <View style={{ marginTop: 12 }}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              Recent <Text style={styles.sectionTitleItalic}>shops</Text>
+            </Text>
+            <Pressable style={styles.sectionLink} onPress={() => router.push('/(tabs)/orders')}>
+              <Text style={styles.sectionLinkText}>See all</Text>
+              <CaretRight size={11} color={Colors.muted} weight="bold" />
+            </Pressable>
+          </View>
+          <View>
             {recentShops.map((shop, i) => (
-              <View key={i} style={styles.shopRow}>
+              <Pressable key={i} style={styles.shopRow} onPress={() => router.push('/(tabs)/orders')}>
                 <View style={styles.shopIcon}>
                   <ShoppingBag size={14} color={Colors.muted} weight="regular" />
                 </View>
@@ -123,7 +136,7 @@ export default function HomeScreen() {
                   <Text style={styles.shopMeta}>{shop.items} items</Text>
                 </View>
                 <Text style={styles.shopAmount}>${shop.total.toFixed(2)}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
