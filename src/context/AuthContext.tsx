@@ -1,6 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { authApi, tokenStorage, setUnauthenticatedHandler, type StoredUser } from '../api';
+import {
+  authApi,
+  tokenStorage,
+  setUnauthenticatedHandler,
+  type OtpRequestResponse,
+  type StoredUser,
+} from '../api';
 import type { AuthResponse } from '../types';
+
+export type OtpRecipientKind = 'phone' | 'email';
 
 interface AuthContextValue {
   user: StoredUser | null;
@@ -8,6 +16,8 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
+  requestOtp: (kind: OtpRecipientKind, recipient: string) => Promise<OtpRequestResponse>;
+  verifyOtp: (correlationId: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -53,6 +63,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await persist(res);
   };
 
+  const requestOtp = async (kind: OtpRecipientKind, recipient: string) => {
+    return kind === 'phone'
+      ? authApi.requestOtpForPhone(recipient)
+      : authApi.requestOtpForEmail(recipient);
+  };
+
+  const verifyOtp = async (correlationId: string, code: string) => {
+    const res = await authApi.verifyOtp({ correlationId, code });
+    await persist(res);
+  };
+
   const logout = async () => {
     const refresh = await tokenStorage.getRefresh();
     if (refresh) {
@@ -74,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         register,
+        requestOtp,
+        verifyOtp,
         logout,
       }}
     >
