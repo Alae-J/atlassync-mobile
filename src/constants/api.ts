@@ -15,6 +15,9 @@ export const Endpoints = {
     login: '/api/auth/login',
     refresh: '/api/auth/refresh',
     logout: '/api/auth/logout',
+    otpRequestPhone: '/api/auth/otp/request',
+    otpRequestEmail: '/api/auth/otp/email/request',
+    otpVerify: '/api/auth/otp/verify',
   },
   products: {
     byBarcode: (barcode: string) => `/api/products/${barcode}`,
