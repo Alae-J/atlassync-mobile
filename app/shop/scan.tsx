@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -13,12 +13,38 @@ import { X, ShoppingBag, Check, Barcode } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius } from '../../src/constants/theme';
 import { productById } from '../../src/data/catalog';
+import { useSession } from '../../src/context/SessionContext';
+import type { CartItem } from '../../src/types';
 
 const remainingIds = ['milk', 'avocado', 'chicken', 'olive-oil', 'bread', 'eggs'];
-const capturedIds = ['banana'];
+const SIMULATE_BARCODES = ['1234567890', '2345678901', '3456789012'];
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
+  const { sessionId, cart, refreshCart, scanItem } = useSession();
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sessionId) refreshCart().catch(() => undefined);
+  }, [sessionId, refreshCart]);
+
+  const simulateScan = async () => {
+    if (scanning || !sessionId) return;
+    setScanning(true);
+    setScanError(null);
+    const barcode = SIMULATE_BARCODES[Math.floor(Math.random() * SIMULATE_BARCODES.length)];
+    try {
+      await scanItem(barcode);
+    } catch {
+      setScanError('Item not found. Try another.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const totalSoFar = cart?.total ?? 0;
+  const lastItem: CartItem | null = cart?.items.length ? cart.items[cart.items.length - 1] : null;
 
   const scanProgress = useSharedValue(0);
   useEffect(() => {
@@ -33,9 +59,6 @@ export default function ScanScreen() {
     transform: [{ translateY: -90 + scanProgress.value * 180 }],
     opacity: 0.4 + scanProgress.value * 0.6,
   }));
-
-  const justScanned = productById('banana');
-  const totalSoFar = capturedIds.reduce((s, id) => s + (productById(id)?.price ?? 0), 0);
 
   return (
     <View style={styles.root}>
@@ -72,13 +95,13 @@ export default function ScanScreen() {
       </View>
 
       <View style={styles.viewfinder}>
-        <View style={styles.frame}>
+        <Pressable style={styles.frame} onPress={simulateScan}>
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
             <View key={c} style={[styles.cornerBase, cornerStyles[c]]} />
           ))}
           <View style={styles.framePlaceholder}>
             <Barcode size={32} color="rgba(244,237,224,0.55)" weight="thin" />
-            <Text style={styles.frameHint}>Aim at a barcode</Text>
+            <Text style={styles.frameHint}>{scanning ? 'Adding…' : 'Tap to simulate scan'}</Text>
           </View>
           <Animated.View style={[styles.scanline, scanlineStyle]}>
             <LinearGradient
@@ -88,11 +111,11 @@ export default function ScanScreen() {
               style={StyleSheet.absoluteFill as never}
             />
           </Animated.View>
-        </View>
+        </Pressable>
       </View>
 
-      {justScanned && (
-        <Pressable style={styles.toast} onPress={() => router.push('/shop/substitute')}>
+      {lastItem && (
+        <Pressable style={styles.toast} onPress={simulateScan}>
           <View style={styles.toastThumb}>
             <LinearGradient
               colors={[Colors.tile, Colors.tileDeep]}
@@ -100,16 +123,16 @@ export default function ScanScreen() {
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill as never}
             />
-            <Text style={styles.toastEmoji}>{justScanned.emoji}</Text>
+            <Text style={styles.toastEmoji}>📦</Text>
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.toastTopRow}>
               <Check size={12} color={Colors.accent} weight="bold" />
               <Text style={styles.toastEyebrow}>ADDED TO CART</Text>
             </View>
-            <Text style={styles.toastName}>{justScanned.name}</Text>
+            <Text style={styles.toastName}>{lastItem.productName}</Text>
             <Text style={styles.toastMeta}>
-              ${justScanned.price.toFixed(2)}/{justScanned.unit}
+              {lastItem.quantity} × ${lastItem.priceAtAddition.toFixed(2)}
             </Text>
           </View>
           <Pressable>
@@ -117,6 +140,8 @@ export default function ScanScreen() {
           </Pressable>
         </Pressable>
       )}
+
+      {scanError && <Text style={styles.scanErrorText}>{scanError}</Text>}
 
       <View style={[styles.peekSheet, { paddingBottom: insets.bottom + 22 }]}>
         <View style={styles.handle} />
@@ -267,6 +292,13 @@ const styles = StyleSheet.create({
   toastName: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.ink, marginTop: 2 },
   toastMeta: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted },
   undoText: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Colors.muted, paddingHorizontal: 8 },
+  scanErrorText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: Colors.amber,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
 
   peekSheet: {
     backgroundColor: Colors.cream,

@@ -6,10 +6,24 @@ import { ArrowLeft, ArrowRight, Plus, Camera } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { savedLists, productById } from '../../src/data/catalog';
+import { useSession } from '../../src/context/SessionContext';
 
 export default function ArriveScreen() {
   const insets = useSafeAreaInsets();
+  const { startSession, isStarting } = useSession();
   const [selected, setSelected] = useState<string>(savedLists[0].id);
+  const [error, setError] = useState<string | null>(null);
+
+  const beginScanning = async () => {
+    if (isStarting) return;
+    setError(null);
+    try {
+      await startSession();
+      router.push('/shop/scan');
+    } catch {
+      setError('Could not start a session. Try again.');
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -98,7 +112,7 @@ export default function ArriveScreen() {
             <Text style={styles.altTitle}>New list</Text>
             <Text style={styles.altDesc}>Build it on the fly as you shop.</Text>
           </Pressable>
-          <Pressable style={styles.altBtn} onPress={() => router.push('/shop/scan')}>
+          <Pressable style={styles.altBtn} onPress={beginScanning}>
             <View style={styles.altIcon}>
               <Camera size={14} color={Colors.ink} weight="regular" />
             </View>
@@ -109,10 +123,11 @@ export default function ArriveScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
-        <Pressable style={styles.cta} onPress={() => router.push('/shop/scan')}>
+        {error && <Text style={styles.errorLine}>{error}</Text>}
+        <Pressable style={[styles.cta, isStarting && { opacity: 0.6 }]} disabled={isStarting} onPress={beginScanning}>
           <View style={styles.ctaLeft}>
             <Camera size={18} color={Colors.cream} weight="regular" />
-            <Text style={styles.ctaText}>Start scanning</Text>
+            <Text style={styles.ctaText}>{isStarting ? 'Opening gate…' : 'Start scanning'}</Text>
           </View>
           <ArrowRight size={16} color={Colors.cream} weight="bold" />
         </Pressable>
@@ -271,4 +286,11 @@ const styles = StyleSheet.create({
   },
   ctaLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   ctaText: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.cream },
+  errorLine: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: Colors.danger,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
 });
