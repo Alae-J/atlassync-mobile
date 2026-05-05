@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useAuth } from '../../src/context/AuthContext';
 import {
   CaretRight,
   User as UserIcon,
@@ -105,6 +106,11 @@ export default function AccountScreen() {
 }
 
 function ProfileTab() {
+  const { logout } = useAuth();
+  const handleSignOut = async () => {
+    await logout();
+    router.replace('/auth/login');
+  };
   return (
     <>
       <View style={styles.section}>
@@ -199,7 +205,7 @@ function ProfileTab() {
       </View>
 
       <View style={[styles.section, { paddingTop: 28 }]}>
-        <Pressable style={styles.signOut} onPress={() => router.replace('/auth/login')}>
+        <Pressable style={styles.signOut} onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
       </View>

@@ -1,45 +1,126 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import type { QrData, CartSnapshot } from '../types';
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { cartApi, gateApi, sessionsApi } from '../api';
+import type { CartSnapshot, QrData, StartSessionResponse } from '../types';
 
-interface SessionContextType {
+interface SessionContextValue {
   sessionId: string | null;
   entryQr: QrData | null;
   exitQr: QrData | null;
   cart: CartSnapshot | null;
   isActive: boolean;
-  setSessionId: (id: string | null) => void;
-  setEntryQr: (qr: QrData | null) => void;
-  setExitQr: (qr: QrData | null) => void;
-  setCart: (cart: CartSnapshot | null) => void;
+  isStarting: boolean;
+  startSession: (storeId?: number) => Promise<StartSessionResponse>;
+  refreshCart: () => Promise<CartSnapshot | null>;
+  scanItem: (barcode: string) => Promise<CartSnapshot | null>;
+  removeItem: (barcode: string) => Promise<CartSnapshot | null>;
+  pay: (paymentMethodId?: string) => Promise<QrData>;
+  cancel: () => Promise<void>;
+  validateExit: () => Promise<void>;
+  reset: () => void;
 }
 
-const SessionContext = createContext<SessionContextType | null>(null);
+const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [entryQr, setEntryQr] = useState<QrData | null>(null);
   const [exitQr, setExitQr] = useState<QrData | null>(null);
   const [cart, setCart] = useState<CartSnapshot | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+
+  const reset = useCallback(() => {
+    setSessionId(null);
+    setEntryQr(null);
+    setExitQr(null);
+    setCart(null);
+  }, []);
+
+  const startSession = useCallback(async (storeId?: number) => {
+    setIsStarting(true);
+    try {
+      const res = await sessionsApi.start({ storeId });
+      setSessionId(res.sessionId);
+      setEntryQr(res.entryQr);
+      setExitQr(null);
+      setCart(null);
+      return res;
+    } finally {
+      setIsStarting(false);
+    }
+  }, []);
+
+  const refreshCart = useCallback(async () => {
+    if (!sessionId) return null;
+    const snapshot = await cartApi.get(sessionId);
+    setCart(snapshot);
+    return snapshot;
+  }, [sessionId]);
+
+  const scanItem = useCallback(
+    async (barcode: string) => {
+      if (!sessionId) return null;
+      await cartApi.addItem(sessionId, { barcode });
+      return refreshCart();
+    },
+    [sessionId, refreshCart],
+  );
+
+  const removeItem = useCallback(
+    async (barcode: string) => {
+      if (!sessionId) return null;
+      await cartApi.removeItem(sessionId, barcode);
+      return refreshCart();
+    },
+    [sessionId, refreshCart],
+  );
+
+  const pay = useCallback(
+    async (paymentMethodId?: string) => {
+      if (!sessionId) throw new Error('No active session');
+      const res = await sessionsApi.pay(sessionId, { paymentMethodId });
+      setExitQr(res.exitQr);
+      return res.exitQr;
+    },
+    [sessionId],
+  );
+
+  const cancel = useCallback(async () => {
+    if (!sessionId) return;
+    await sessionsApi.cancel(sessionId);
+    reset();
+  }, [sessionId, reset]);
+
+  const validateExit = useCallback(async () => {
+    if (!exitQr) return;
+    await gateApi.exit({ payload: exitQr.payload, signature: exitQr.signature });
+  }, [exitQr]);
 
   return (
-    <SessionContext.Provider value={{
-      sessionId,
-      entryQr,
-      exitQr,
-      cart,
-      isActive: !!sessionId,
-      setSessionId,
-      setEntryQr,
-      setExitQr,
-      setCart,
-    }}>
+    <SessionContext.Provider
+      value={{
+        sessionId,
+        entryQr,
+        exitQr,
+        cart,
+        isActive: !!sessionId,
+        isStarting,
+        startSession,
+        refreshCart,
+        scanItem,
+        removeItem,
+        pay,
+        cancel,
+        validateExit,
+        reset,
+      }}
+    >
       {children}
     </SessionContext.Provider>
   );
 }
 
-export function useSession() {
-  const context = useContext(SessionContext);
-  if (!context) throw new Error('useSession must be used within SessionProvider');
-  return context;
+export function useSession(): SessionContextValue {
+  const ctx = useContext(SessionContext);
+  if (!ctx) throw new Error('useSession must be used within SessionProvider');
+  return ctx;
 }
