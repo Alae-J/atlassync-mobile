@@ -1,14 +1,29 @@
+import { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Check } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
+import { useSession } from '../../src/context/SessionContext';
 
 const BARCODE_WIDTHS = [2, 4, 1, 3, 2, 5, 1, 2, 4, 2, 1, 3, 4, 2, 1, 5, 2, 3, 1, 2, 4, 2, 1, 3, 2, 4, 1, 3, 2];
 
 export default function WalkoutScreen() {
   const insets = useSafeAreaInsets();
+  const { validateExit, cart, reset } = useSession();
+
+  useEffect(() => {
+    validateExit().catch(() => undefined);
+  }, [validateExit]);
+
+  const handleDone = () => {
+    reset();
+    router.replace('/(tabs)/home');
+  };
+
+  const total = cart?.total ?? 0;
+  const itemCount = cart?.itemCount ?? 0;
 
   return (
     <View style={styles.root}>
@@ -66,19 +81,16 @@ export default function WalkoutScreen() {
             ))}
           </View>
           <View style={styles.ticketBottomRow}>
-            <Text style={styles.ticketBottomText}>7 items · 1 swap</Text>
+            <Text style={styles.ticketBottomText}>{itemCount} items</Text>
             <Text style={styles.ticketBottomText}>
-              Total <Text style={styles.ticketBottomStrong}>$48.27</Text>
+              Total <Text style={styles.ticketBottomStrong}>${total.toFixed(2)}</Text>
             </Text>
           </View>
         </View>
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
-        <Pressable
-          style={styles.doneBtn}
-          onPress={() => router.replace('/(tabs)/home')}
-        >
+        <Pressable style={styles.doneBtn} onPress={handleDone}>
           <Text style={styles.doneBtnText}>Done</Text>
         </Pressable>
         <Pressable style={styles.saveBtn}>

@@ -1,34 +1,42 @@
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, WarningCircle } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
-import { productById } from '../../src/data/catalog';
-
-interface CartLine {
-  id: string;
-  qty: number;
-  sub?: string;
-}
-
-const cart: CartLine[] = [
-  { id: 'banana', qty: 2 },
-  { id: 'milk', qty: 1 },
-  { id: 'avocado', qty: 4, sub: 'Organic' },
-  { id: 'chicken', qty: 1 },
-  { id: 'olive-oil', qty: 1 },
-  { id: 'bread', qty: 1 },
-  { id: 'eggs', qty: 1 },
-];
+import { useSession } from '../../src/context/SessionContext';
 
 const TAX_RATE = 0.0875;
 
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();
-  const subtotal = cart.reduce((sum, it) => sum + (productById(it.id)?.price ?? 0) * it.qty, 0);
+  const { cart, refreshCart, pay } = useSession();
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    refreshCart().catch(() => undefined);
+  }, [refreshCart]);
+
+  const lines = cart?.items ?? [];
+  const subtotal = cart?.total ?? 0;
   const tax = subtotal * TAX_RATE;
   const total = subtotal + tax;
+
+  const handlePay = async () => {
+    if (paying) return;
+    setError(null);
+    setPaying(true);
+    try {
+      await pay();
+      router.replace('/shop/walkout');
+    } catch {
+      setError('Payment failed. Try again.');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -53,7 +61,7 @@ export default function ReviewScreen() {
           Looks <Text style={styles.heroItalic}>good?</Text>
         </Text>
         <Text style={styles.heroMeta}>
-          {cart.length} items · 1 substitution · grabbed in 18 min
+          {cart?.itemCount ?? lines.length} items · {lines.length === 0 ? 'cart empty' : 'tap pay to walk out'}
         </Text>
       </View>
 
@@ -63,41 +71,36 @@ export default function ReviewScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.receipt}>
-          {cart.map((line, i) => {
-            const p = productById(line.id);
-            if (!p) return null;
-            return (
-              <View
-                key={line.id}
-                style={[styles.receiptRow, i < cart.length - 1 && styles.receiptRowDivider]}
-              >
-                <View style={styles.receiptThumb}>
-                  <LinearGradient
-                    colors={[Colors.tile, Colors.tileDeep]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill as never}
-                  />
-                  <Text style={styles.receiptEmoji}>{p.emoji}</Text>
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={styles.receiptNameRow}>
-                    <Text style={styles.receiptName}>{p.name}</Text>
-                    {line.sub && (
-                      <View style={styles.swapBadge}>
-                        <Text style={styles.swapBadgeText}>SWAP</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.receiptMeta}>
-                    {line.qty} × ${p.price.toFixed(2)}
-                    {line.sub ? ` · ${line.sub}` : ''}
-                  </Text>
-                </View>
-                <Text style={styles.receiptAmount}>${(p.price * line.qty).toFixed(2)}</Text>
+          {lines.length === 0 && (
+            <Text style={styles.emptyText}>No items scanned yet.</Text>
+          )}
+          {lines.map((line, i) => (
+            <View
+              key={line.productId}
+              style={[styles.receiptRow, i < lines.length - 1 && styles.receiptRowDivider]}
+            >
+              <View style={styles.receiptThumb}>
+                <LinearGradient
+                  colors={[Colors.tile, Colors.tileDeep]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill as never}
+                />
+                <Text style={styles.receiptEmoji}>📦</Text>
               </View>
-            );
-          })}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={styles.receiptNameRow}>
+                  <Text style={styles.receiptName}>{line.productName}</Text>
+                </View>
+                <Text style={styles.receiptMeta}>
+                  {line.quantity} × ${line.priceAtAddition.toFixed(2)}
+                </Text>
+              </View>
+              <Text style={styles.receiptAmount}>
+                ${(line.priceAtAddition * line.quantity).toFixed(2)}
+              </Text>
+            </View>
+          ))}
         </View>
 
         <View style={styles.totalsBlock}>
@@ -118,14 +121,19 @@ export default function ReviewScreen() {
       </ScrollView>
 
       <View style={[styles.payBar, { paddingBottom: insets.bottom + 14, paddingTop: 8 }]}>
+        {error && <Text style={styles.payError}>{error}</Text>}
         <View style={styles.payCard}>
           <View>
             <Text style={styles.payLabel}>YOU PAY</Text>
             <Text style={styles.payAmount}>${total.toFixed(2)}</Text>
           </View>
-          <Pressable style={styles.payBtn} onPress={() => router.replace('/shop/walkout')}>
-            <Text style={styles.payBtnText}>Pay & walk out</Text>
-            <ArrowRight size={14} color={Colors.ink} weight="bold" />
+          <Pressable
+            style={[styles.payBtn, (paying || lines.length === 0) && { opacity: 0.6 }]}
+            disabled={paying || lines.length === 0}
+            onPress={handlePay}
+          >
+            <Text style={styles.payBtnText}>{paying ? 'Processing…' : 'Pay & walk out'}</Text>
+            {!paying && <ArrowRight size={14} color={Colors.ink} weight="bold" />}
           </Pressable>
         </View>
       </View>
@@ -280,4 +288,18 @@ const styles = StyleSheet.create({
     ...Shadows.amberCta,
   },
   payBtnText: { fontFamily: Fonts.sansSemibold, fontSize: 14, color: Colors.ink },
+  payError: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: Colors.danger,
+    textAlign: 'center',
+    paddingBottom: 6,
+  },
+  emptyText: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: Colors.muted,
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
 });
