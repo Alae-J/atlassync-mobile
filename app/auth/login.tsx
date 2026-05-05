@@ -8,8 +8,6 @@ import {
   ArrowRight,
   CaretDown,
   Check,
-  Eye,
-  EyeSlash,
   Lock,
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme';
@@ -27,45 +25,59 @@ const formatPhone = (raw: string) => {
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { requestOtp, verifyOtp } = useAuth();
 
-  const [mode, setMode] = useState<Mode>('email');
+  const [mode, setMode] = useState<Mode>('phone');
   const [step, setStep] = useState<Step>('input');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [focused, setFocused] = useState<'phone' | 'email' | 'password' | null>(null);
+  const [focused, setFocused] = useState<'phone' | 'email' | null>(null);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [correlationId, setCorrelationId] = useState<string | null>(null);
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
-  const phoneValid = phone.replace(/\D/g, '').length >= 8;
-  const emailValid = email.includes('@') && password.length >= 4;
+  const phoneDigits = phone.replace(/\D/g, '');
+  const phoneValid = phoneDigits.length >= 8;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canSubmit = mode === 'phone' ? phoneValid : emailValid;
+
+  const formattedPhone = () => `+${phoneDigits}`;
+
+  const extractError = (e: unknown, fallback: string) =>
+    e && typeof e === 'object' && 'response' in e
+      ? ((e as { response?: { data?: { detail?: string; message?: string } } }).response?.data?.detail ??
+          (e as { response?: { data?: { message?: string } } }).response?.data?.message ??
+          fallback)
+      : fallback;
 
   const submit = async () => {
     if (!canSubmit || loading) return;
     setError(null);
     setLoading(true);
     try {
-      if (mode === 'phone') {
-        // Phone+OTP backend not implemented yet — see backend issue #1.
-        await new Promise((r) => setTimeout(r, 600));
-        setStep('otp');
-        setTimeout(() => otpRefs.current[0]?.focus(), 80);
-      } else {
-        await login(email.trim(), password);
-        setStep('success');
-      }
+      const recipient = mode === 'phone' ? formattedPhone() : email.trim().toLowerCase();
+      const res = await requestOtp(mode, recipient);
+      setCorrelationId(res.correlationId);
+      setStep('otp');
+      setTimeout(() => otpRefs.current[0]?.focus(), 80);
     } catch (e: unknown) {
-      const message =
-        e && typeof e === 'object' && 'response' in e
-          ? ((e as { response?: { data?: { message?: string } } }).response?.data?.message ??
-              'Sign in failed. Check your credentials.')
-          : 'Network error. Try again.';
-      setError(message);
+      setError(extractError(e, 'Could not send the code. Try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const performVerify = async (fullCode: string) => {
+    if (!correlationId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await verifyOtp(correlationId, fullCode);
+      setStep('success');
+    } catch (e: unknown) {
+      setError(extractError(e, 'Invalid code. Try again.'));
     } finally {
       setLoading(false);
     }
@@ -78,11 +90,7 @@ export default function LoginScreen() {
     setOtp(next);
     if (d && i < 5) otpRefs.current[i + 1]?.focus();
     if (next.every((x) => x !== '') && i === 5) {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        setStep('success');
-      }, 800);
+      void performVerify(next.join(''));
     }
   };
 
@@ -97,11 +105,14 @@ export default function LoginScreen() {
     setMode(next);
     setStep('input');
     setOtp(['', '', '', '', '', '']);
+    setError(null);
   };
 
   const goBack = () => {
     setStep('input');
     setOtp(['', '', '', '', '', '']);
+    setCorrelationId(null);
+    setError(null);
   };
 
   useEffect(() => {
@@ -209,12 +220,13 @@ export default function LoginScreen() {
                 </>
               ) : (
                 <>
+                  <Text style={styles.helper}>We'll send a 6-digit code to your inbox.</Text>
                   <View style={[styles.fieldStacked, focused === 'email' && styles.fieldFocused]}>
                     <TextInput
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
-                      placeholder="Email address"
+                      placeholder="you@example.com"
                       placeholderTextColor={Colors.muted}
                       value={email}
                       onChangeText={setEmail}
@@ -223,28 +235,6 @@ export default function LoginScreen() {
                       style={styles.inputStacked}
                     />
                   </View>
-                  <View style={[styles.fieldStacked, focused === 'password' && styles.fieldFocused, { marginTop: 8 }]}>
-                    <TextInput
-                      secureTextEntry={!showPassword}
-                      placeholder="Password"
-                      placeholderTextColor={Colors.muted}
-                      value={password}
-                      onChangeText={setPassword}
-                      onFocus={() => setFocused('password')}
-                      onBlur={() => setFocused(null)}
-                      style={styles.inputStacked}
-                    />
-                    <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeBtn}>
-                      {showPassword ? (
-                        <EyeSlash size={18} color={Colors.muted} weight="regular" />
-                      ) : (
-                        <Eye size={18} color={Colors.muted} weight="regular" />
-                      )}
-                    </Pressable>
-                  </View>
-                  <Pressable style={styles.forgotBtn}>
-                    <Text style={styles.forgotText}>Forgot password?</Text>
-                  </Pressable>
                 </>
               )}
 
@@ -254,7 +244,7 @@ export default function LoginScreen() {
                 style={[styles.submit, !canSubmit && styles.submitDisabled]}
               >
                 <Text style={styles.submitText}>
-                  {loading ? 'Working…' : mode === 'phone' ? 'Send code' : 'Sign in'}
+                  {loading ? 'Working…' : 'Send code'}
                 </Text>
                 {!loading && <ArrowRight size={16} color={Colors.cream} weight="bold" />}
               </Pressable>
@@ -275,9 +265,14 @@ export default function LoginScreen() {
 
           {step === 'otp' && (
             <>
-              <Text style={styles.otpTitle}>Check your messages</Text>
+              <Text style={styles.otpTitle}>
+                {mode === 'phone' ? 'Check your messages' : 'Check your inbox'}
+              </Text>
               <Text style={styles.otpHelper}>
-                Code sent to <Text style={styles.otpHelperStrong}>+1 {formatPhone(phone)}</Text>
+                Code sent to{' '}
+                <Text style={styles.otpHelperStrong}>
+                  {mode === 'phone' ? formattedPhone() : email.trim().toLowerCase()}
+                </Text>
               </Text>
               <View style={styles.otpRow}>
                 {otp.map((d, i) => (
