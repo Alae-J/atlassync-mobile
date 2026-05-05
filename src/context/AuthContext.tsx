@@ -1,10 +1,9 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import type { User, AuthResponse } from '../types';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { authApi, tokenStorage, setUnauthenticatedHandler, type StoredUser } from '../api';
+import type { AuthResponse } from '../types';
 
-interface AuthContextType {
-  user: User | null;
-  accessToken: string | null;
+interface AuthContextValue {
+  user: StoredUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -12,76 +11,79 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [user, setUser] = useState<StoredUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadStoredAuth();
+    (async () => {
+      try {
+        const stored = await tokenStorage.getUser();
+        if (stored) setUser(stored);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   }, []);
 
-  async function loadStoredAuth() {
-    try {
-      const token = await SecureStore.getItemAsync('accessToken');
-      const userData = await SecureStore.getItemAsync('user');
-      if (token && userData) {
-        setAccessToken(token);
-        setUser(JSON.parse(userData));
+  useEffect(() => {
+    setUnauthenticatedHandler(() => setUser(null));
+    return () => setUnauthenticatedHandler(null);
+  }, []);
+
+  const persist = async (response: AuthResponse) => {
+    const next: StoredUser = {
+      userId: response.userId,
+      email: response.email,
+      role: response.role,
+    };
+    await tokenStorage.set(response.accessToken, response.refreshToken, next);
+    setUser(next);
+  };
+
+  const login = async (email: string, password: string) => {
+    const res = await authApi.login({ email, password });
+    await persist(res);
+  };
+
+  const register = async (email: string, username: string, password: string) => {
+    const res = await authApi.register({ email, username, password });
+    await persist(res);
+  };
+
+  const logout = async () => {
+    const refresh = await tokenStorage.getRefresh();
+    if (refresh) {
+      try {
+        await authApi.logout(refresh);
+      } catch {
+        // ignore — server may already have invalidated it
       }
-    } catch {
-      // No stored auth
-    } finally {
-      setIsLoading(false);
     }
-  }
-
-  async function storeAuth(response: AuthResponse) {
-    const userData: User = { userId: response.userId, email: response.email, role: response.role };
-    await SecureStore.setItemAsync('accessToken', response.accessToken);
-    await SecureStore.setItemAsync('refreshToken', response.refreshToken);
-    await SecureStore.setItemAsync('user', JSON.stringify(userData));
-    setAccessToken(response.accessToken);
-    setUser(userData);
-  }
-
-  async function login(email: string, password: string) {
-    // TODO: Call auth API -- will wire up when building the actual login screen
-    throw new Error('Not implemented yet');
-  }
-
-  async function register(email: string, username: string, password: string) {
-    // TODO: Call auth API -- will wire up when building the actual register screen
-    throw new Error('Not implemented yet');
-  }
-
-  async function logout() {
-    await SecureStore.deleteItemAsync('accessToken');
-    await SecureStore.deleteItemAsync('refreshToken');
-    await SecureStore.deleteItemAsync('user');
-    setAccessToken(null);
+    await tokenStorage.clear();
     setUser(null);
-  }
+  };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      accessToken,
-      isAuthenticated: !!accessToken,
-      isLoading,
-      login,
-      register,
-      logout,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }

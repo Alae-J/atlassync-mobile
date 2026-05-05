@@ -13,6 +13,7 @@ import {
   Lock,
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme';
+import { useAuth } from '../../src/context/AuthContext';
 
 type Mode = 'phone' | 'email';
 type Step = 'input' | 'otp' | 'success';
@@ -26,8 +27,9 @@ const formatPhone = (raw: string) => {
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
 
-  const [mode, setMode] = useState<Mode>('phone');
+  const [mode, setMode] = useState<Mode>('email');
   const [step, setStep] = useState<Step>('input');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -36,24 +38,37 @@ export default function LoginScreen() {
   const [focused, setFocused] = useState<'phone' | 'email' | 'password' | null>(null);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const otpRefs = useRef<(TextInput | null)[]>([]);
 
   const phoneValid = phone.replace(/\D/g, '').length >= 8;
   const emailValid = email.includes('@') && password.length >= 4;
   const canSubmit = mode === 'phone' ? phoneValid : emailValid;
 
-  const submit = () => {
+  const submit = async () => {
     if (!canSubmit || loading) return;
+    setError(null);
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
       if (mode === 'phone') {
+        // Phone+OTP backend not implemented yet — see backend issue #1.
+        await new Promise((r) => setTimeout(r, 600));
         setStep('otp');
         setTimeout(() => otpRefs.current[0]?.focus(), 80);
       } else {
+        await login(email.trim(), password);
         setStep('success');
       }
-    }, 700);
+    } catch (e: unknown) {
+      const message =
+        e && typeof e === 'object' && 'response' in e
+          ? ((e as { response?: { data?: { message?: string } } }).response?.data?.message ??
+              'Sign in failed. Check your credentials.')
+          : 'Network error. Try again.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onOtpChange = (i: number, val: string) => {
@@ -243,6 +258,8 @@ export default function LoginScreen() {
                 </Text>
                 {!loading && <ArrowRight size={16} color={Colors.cream} weight="bold" />}
               </Pressable>
+
+              {error && <Text style={styles.errorText}>{error}</Text>}
 
               <View style={styles.trustRow}>
                 <Lock size={13} color={Colors.muted} weight="regular" />
@@ -494,6 +511,7 @@ const styles = StyleSheet.create({
   },
   submitDisabled: { backgroundColor: '#d8d2c5', shadowOpacity: 0 },
   submitText: { fontFamily: Fonts.sansMedium, fontSize: 15.5, color: Colors.cream },
+  errorText: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Colors.danger, marginTop: 10, textAlign: 'center' },
 
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
   trustText: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted },
