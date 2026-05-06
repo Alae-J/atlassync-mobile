@@ -267,9 +267,11 @@ export default function LoginScreen() {
               </View>
 
               <View style={styles.divider} />
-              <Text style={styles.signupText}>
-                First time here? <Text style={styles.signupLink}>Create an account →</Text>
-              </Text>
+              <Pressable onPress={() => router.push('/auth/register')}>
+                <Text style={styles.signupText}>
+                  First time here? <Text style={styles.signupLink}>Create an account →</Text>
+                </Text>
+              </Pressable>
             </>
           )}
 

@@ -27,12 +27,9 @@ import {
   Plus,
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
+import { displayName, splitName } from '../../src/lib/userDisplay';
 
 type AccountTab = 'profile' | 'payments' | 'preferences' | 'help';
-
-const userName = 'Adam';
-const lastName = 'Tarek';
-const userPhone = '+20 100 ··· 4287';
 
 const TABS: { key: AccountTab; label: string }[] = [
   { key: 'profile', label: 'Profile' },
@@ -43,7 +40,12 @@ const TABS: { key: AccountTab; label: string }[] = [
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [active, setActive] = useState<AccountTab>('profile');
+
+  const [first, last] = splitName(user);
+  const initial = (first[0] ?? '?').toUpperCase();
+  const subtitle = user?.email ?? '';
 
   return (
     <View style={styles.root}>
@@ -55,13 +57,14 @@ export default function AccountScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.avatar}
           >
-            <Text style={styles.avatarLetter}>{userName[0]}</Text>
+            <Text style={styles.avatarLetter}>{initial}</Text>
           </LinearGradient>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.avatarName}>
-              {userName} <Text style={styles.avatarNameItalic}>{lastName}</Text>
+              {first}
+              {last ? <> <Text style={styles.avatarNameItalic}>{last}</Text></> : null}
             </Text>
-            <Text style={styles.avatarPhone}>{userPhone}</Text>
+            <Text style={styles.avatarPhone}>{subtitle}</Text>
           </View>
         </View>
         <ScrollView
@@ -106,7 +109,8 @@ export default function AccountScreen() {
 }
 
 function ProfileTab() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const [first, last] = splitName(user);
   const handleSignOut = async () => {
     await logout();
     router.replace('/auth/login');
@@ -125,7 +129,8 @@ function ProfileTab() {
             <View>
               <Text style={styles.loyaltyEyebrow}>PHYGITAL · MEMBER</Text>
               <Text style={styles.loyaltyName}>
-                {userName} <Text style={styles.loyaltyNameItalic}>{lastName}</Text>
+                {first}
+                {last ? <> <Text style={styles.loyaltyNameItalic}>{last}</Text></> : null}
               </Text>
             </View>
             <View style={styles.tierBadge}>
@@ -160,9 +165,9 @@ function ProfileTab() {
 
       <SectionHeader eyebrow="IDENTITY" title="Personal" italicWord="details" />
       <Card>
-        <Row icon={<UserIcon size={16} color={Colors.amber} weight="regular" />} label="Full name" value={`${userName} ${lastName}`} />
-        <Row icon={<Phone size={16} color={Colors.amber} weight="regular" />} label="Phone number" value="+20 100 ··· 4287" />
-        <Row icon={<Envelope size={16} color={Colors.amber} weight="regular" />} label="Email" value="adam@hey.com" />
+        <Row icon={<UserIcon size={16} color={Colors.amber} weight="regular" />} label="Full name" value={displayName(user)} />
+        <Row icon={<Phone size={16} color={Colors.amber} weight="regular" />} label="Phone number" value="Not set" />
+        <Row icon={<Envelope size={16} color={Colors.amber} weight="regular" />} label="Email" value={user?.email ?? 'Not set'} />
         <Row icon={<ShieldCheck size={16} color={Colors.amber} weight="regular" />} label="Password" value="Change" />
         <Row icon={<ImageIcon size={16} color={Colors.amber} weight="regular" />} label="Profile photo" value="Upload" last />
       </Card>
