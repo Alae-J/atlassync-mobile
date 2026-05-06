@@ -5,10 +5,11 @@ import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag } from 
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
 import { savedLists, productById } from '../../src/data/catalog';
+import { useAuth } from '../../src/context/AuthContext';
+import { firstName } from '../../src/lib/userDisplay';
 
 type HeroState = 'default' | 'active';
 
-const userName = 'Adam';
 const heroState: HeroState = 'default';
 
 const recentShops = [
@@ -19,6 +20,8 @@ const recentShops = [
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const greetingName = firstName(user);
 
   return (
     <View style={styles.root}>
@@ -41,7 +44,7 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.eyebrow}>SATURDAY · 4 MAY</Text>
             <Text style={styles.greeting}>
-              Hi, <Text style={styles.greetingItalic}>{userName}</Text>.
+              Hi, <Text style={styles.greetingItalic}>{greetingName}</Text>.
             </Text>
           </View>
           <Pressable style={styles.bellBtn}>
