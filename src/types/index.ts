@@ -6,6 +6,7 @@ export interface AuthResponse {
   email: string;
   username: string | null;
   role: string;
+  emailVerified: boolean;
 }
 
 export interface User {
@@ -13,6 +14,7 @@ export interface User {
   email: string;
   username: string | null;
   role: string;
+  emailVerified: boolean;
 }
 
 /** Products */

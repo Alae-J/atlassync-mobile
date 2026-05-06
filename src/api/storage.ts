@@ -9,6 +9,7 @@ export interface StoredUser {
   email: string;
   username: string | null;
   role: string;
+  emailVerified: boolean;
 }
 
 export const tokenStorage = {

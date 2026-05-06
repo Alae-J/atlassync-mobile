@@ -13,6 +13,7 @@ interface RefreshResponse {
   email: string;
   username: string | null;
   role: string;
+  emailVerified: boolean;
 }
 
 let onUnauthenticated: (() => void) | null = null;
@@ -52,6 +53,7 @@ async function refreshAccessToken(): Promise<string | null> {
         email: data.email,
         username: data.username,
         role: data.role,
+        emailVerified: data.emailVerified,
       });
       return data.accessToken;
     } catch {
