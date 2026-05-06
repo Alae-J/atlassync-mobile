@@ -11,6 +11,7 @@ interface RefreshResponse {
   refreshToken: string;
   userId: number;
   email: string;
+  username: string | null;
   role: string;
 }
 
@@ -49,6 +50,7 @@ async function refreshAccessToken(): Promise<string | null> {
       await tokenStorage.set(data.accessToken, data.refreshToken, {
         userId: data.userId,
         email: data.email,
+        username: data.username,
         role: data.role,
       });
       return data.accessToken;
