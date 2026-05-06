@@ -4,12 +4,14 @@ export interface AuthResponse {
   refreshToken: string;
   userId: number;
   email: string;
+  username: string | null;
   role: string;
 }
 
 export interface User {
   userId: number;
   email: string;
+  username: string | null;
   role: string;
 }
 

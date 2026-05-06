@@ -1,13 +1,23 @@
+import Constants from 'expo-constants';
+
 /**
- * API configuration constants.
- * All requests go through the Gateway on port 8080.
+ * Resolves the gateway URL (port 8080) the mobile app talks to.
+ *
+ * - In Expo dev: `Constants.expoConfig.hostUri` exposes the LAN IP your laptop is bound on,
+ *   so a real iPhone on the same Wi-Fi reaches the gateway at `http://<laptop-ip>:8080`
+ *   without any hardcoding.
+ * - When `EXPO_PUBLIC_API_BASE_URL` is set, it overrides everything (useful for staging,
+ *   physical builds, CI).
+ * - Last-resort fallback is `localhost:8080`, which only works for the iOS simulator on
+ *   the same machine.
  */
+const explicit = process.env.EXPO_PUBLIC_API_BASE_URL;
+const debuggerHost = Constants.expoConfig?.hostUri?.split(':').shift();
 
-export const API_BASE_URL = 'http://10.0.2.2:8080'; // Android emulator -> host machine
-// For physical device on same WiFi, replace with your machine's local IP:
-// export const API_BASE_URL = 'http://192.168.x.x:8080';
+export const API_BASE_URL =
+  explicit ?? (debuggerHost ? `http://${debuggerHost}:8080` : 'http://localhost:8080');
 
-export const WS_URL = `ws://${API_BASE_URL.replace('http://', '')}/ws`;
+export const WS_URL = `ws://${API_BASE_URL.replace(/^https?:\/\//, '')}/ws`;
 
 export const Endpoints = {
   auth: {
