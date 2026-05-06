@@ -7,6 +7,7 @@ const USER_KEY = 'auth.user';
 export interface StoredUser {
   userId: number;
   email: string;
+  username: string | null;
   role: string;
 }
 

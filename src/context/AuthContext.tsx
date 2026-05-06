@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const next: StoredUser = {
       userId: response.userId,
       email: response.email,
+      username: response.username,
       role: response.role,
     };
     await tokenStorage.set(response.accessToken, response.refreshToken, next);
