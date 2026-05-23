@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag, EnvelopeSimple } from 'phosphor-react-native';
+import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag, EnvelopeSimple, MagnifyingGlass } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
 import { savedLists, productById } from '../../src/data/catalog';
@@ -47,10 +47,15 @@ export default function HomeScreen() {
               Hi, <Text style={styles.greetingItalic}>{greetingName}</Text>.
             </Text>
           </View>
-          <Pressable style={styles.bellBtn}>
-            <Bell size={16} color={Colors.ink} weight="regular" />
-            <View style={styles.bellDot} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable style={styles.headerChip} onPress={() => router.push('/search')}>
+              <MagnifyingGlass size={16} color={Colors.ink} weight="regular" />
+            </Pressable>
+            <Pressable style={styles.headerChip}>
+              <Bell size={16} color={Colors.ink} weight="regular" />
+              <View style={styles.bellDot} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.storePill}>
@@ -250,7 +255,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   greetingItalic: { fontFamily: Fonts.serifItalic, color: Colors.amber },
-  bellBtn: {
+  headerActions: { flexDirection: 'row', gap: 8 },
+  headerChip: {
     width: 40,
     height: 40,
     borderRadius: 20,
