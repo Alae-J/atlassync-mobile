@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Scan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="screens/data.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens/scan-v2.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (props) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={true} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <ScanV2 {...props} />
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="scan-idle"
+        title="Scan — idle"
+        subtitle="The starting state. Camera framing and scanline animation untouched. The 'No barcode? Search manually' link sits quietly under the frame hint; the totals strip at the bottom is pressable (Review caret on the right)."
+      >
+        <DCArtboard
+          id="idle"
+          label="Idle — waiting for a scan"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'idle' })}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="scan-peek-variants"
+        title="Post-scan peek card — four variants"
+        subtitle="Card rises between the frame and the totals strip after a successful scan. Hairline at the bottom drains over 3-4 seconds, then the card slides back down. Tapping pauses the drain. Tapping the card pushes Product Detail."
+      >
+        <DCArtboard
+          id="normal"
+          label="A. Normal — recognised product"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'normal', scannedId: 'apple' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="allergen"
+          label="B. Allergen match — calm red banner, no auto-dismiss"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'allergen', scannedId: 'milk' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="rfid"
+          label="C. RFID secured — pick up at counter"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'rfid', scannedId: 'chicken' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="unknown"
+          label="D. Unknown barcode — flipped anatomy"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'unknown', unknownBarcode: '5 901234 123457' })}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="scan-rationale"
+        title="Reasoning"
+        subtitle="Notes on the three additions."
+      >
+        <DCArtboard id="why-scan" label="Notes" width={420} height={cardH} style={{ background: '#fffdf8' }}>
+          <div style={{
+            padding: 28, height: '100%', boxSizing: 'border-box',
+            fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+            color: '#1c1a17', overflow: 'auto',
+          }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+              The <span style={{ fontStyle: 'italic', color: '#3d6e4a' }}>peek.</span>
+            </div>
+            <p style={{ marginTop: 0 }}>
+              A scan is the only moment in this app where the user is moving fast,
+              one-handed, slightly distracted. The card has to confirm-without-blocking,
+              and shrink Product Detail's hero into a glanceable strip — same thumb
+              treatment, same name/brand/price hierarchy, same chips.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>WHY A DRAINING HAIRLINE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              A countdown numeral ("3… 2… 1…") feels punishing. A spinner is dishonest —
+              nothing is loading. A hairline that drains is a visual cue you can ignore
+              if you trust the scan, and notice if you want to act. The bar pauses on
+              any touch — once the user reaches for it, we wait.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>WHY ALLERGEN LOCKS THE CARD</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Allergens are the one moment we make the user explicitly decide. Auto-
+              dismiss is wrong here — silence after a warning reads as approval. The
+              hairline is replaced with a static red rule so the card still feels
+              <em> finished</em>, just intentional.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>QUIET UNDO</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Undo is muted-underlined — the same treatment as "Resend in 28s" on the
+              auth verify screen. Not a button, not destructive, just <em>a second chance</em>.
+              The user is moving fast — we're not going to put a red wash behind their
+              every action.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>SEARCH ESCAPE HATCH</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Underlined cream text, slightly transparent. It's findable but doesn't
+              compete with the frame. Tapping pushes Search; since the session is active,
+              every Search row's "+" adds straight to cart.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>FRESHNESS WASH</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The amber radial behind the totals strip fades in for ~1.6s on every
+              successful scan. It's just enough peripheral motion to confirm the
+              total has moved without numerals jumping around.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TO DECIDE</div>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li>Should the unknown-barcode variant offer "Suggest this product" alongside Try again?</li>
+              <li>RFID note: keep "Pick up at the counter on your way out" copy, or shorter ("Pickup required")?</li>
+              <li>Should the totals strip caret be hidden until totals exist (i.e. cart is non-empty)?</li>
+            </ol>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -23,9 +23,26 @@ export const Colors = {
   shadowInk: 'rgba(20,15,5,0.18)',
   shadowSoft: 'rgba(20,15,5,0.05)',
   danger: '#b84537',
+  dangerWash: 'rgba(184,69,55,0.10)',
+  dangerWashBorder: 'rgba(184,69,55,0.20)',
   tile: '#fdf3e0',
   tileDeep: '#f5e6cc',
 } as const;
+
+/**
+ * Nutriscore A–E palette. Matches the Phygital design export — graded from a
+ * confident green (A) through olive (B), warm amber (C/D) to a calmer danger-red
+ * (E). Used by the chip badge in search rows and the big card on Product Detail.
+ */
+export const NutriscoreColors = {
+  A: '#3d6e4a',
+  B: '#7a9b3d',
+  C: '#c89538',
+  D: '#c8723a',
+  E: '#b84537',
+} as const;
+
+export type NutriscoreGrade = keyof typeof NutriscoreColors;
 
 export const Fonts = {
   sans: 'Geist_400Regular',

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Account</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="screens/data.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens/account.jsx"></script>
+<script type="text/babel" src="screens/account-tabbed.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (Inner, props) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={false} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <Inner {...props} />
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "userName": "Adam",
+  "tabbedTab": "profile"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection
+          id="account"
+          title="Account & Settings"
+          subtitle="A: Editorial scroll — long surface, one section at a time. B: Tabbed sub-pages — header stays put, content swaps. Compare side-by-side."
+        >
+          <DCArtboard
+            id="account-a"
+            label="A — Editorial scroll"
+            width={cardW} height={cardH}
+            style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+          >
+            {wrapPhone(Account, { userName: tweaks.userName })}
+          </DCArtboard>
+
+          <DCArtboard
+            id="account-b"
+            label="B — Tabbed sub-pages"
+            width={cardW} height={cardH}
+            style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+          >
+            {wrapPhone(AccountTabbed, { userName: tweaks.userName, tab: tweaks.tabbedTab })}
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="rationale"
+          title="Reasoning"
+          subtitle="The structure of this screen, top to bottom."
+        >
+          <DCArtboard id="why" label="Why this layout" width={420} height={cardH} style={{ background: '#fffdf8' }}>
+            <div style={{
+              padding: 28, height: '100%', boxSizing: 'border-box',
+              fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+              color: '#1c1a17', overflow: 'auto',
+            }}>
+              <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+                A long, <span style={{ fontStyle: 'italic', color: '#3d6e4a' }}>calm</span> scroll.
+              </div>
+              <p style={{ marginTop: 0 }}>
+                Account isn't a hot-path screen — users come here to <em>set things up once</em> or check status. Density should be low, type should breathe, sections should feel like chapters.
+              </p>
+
+              <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>ORDER OF OPERATIONS</div>
+              <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                <li><strong>Profile masthead</strong> — name in serif, contact info, edit affordance.</li>
+                <li><strong>Loyalty card hero</strong> — dark "physical card" with points, tier, barcode and progress to next tier. The most visually distinctive element on the page; ties to the loyalty line in checkout.</li>
+                <li><strong>Spending insights</strong> — amount + budget bar + 7-week chart. Trend line in italic.</li>
+                <li><strong>Diet preferences</strong> — chip-set; active prefs filled, inactive outlined. Allergens get their own group with red treatment ("⊘ Shellfish") because they're a hard rule, not a preference.</li>
+                <li><strong>Payment methods</strong> — visa, Vodafone Cash, Apple Pay; default highlighted with green tint.</li>
+                <li><strong>Preferences</strong> — single-line rows: store, notifications, language, currency.</li>
+                <li><strong>Trust &amp; help</strong> — privacy, linked accounts, help, about.</li>
+                <li><strong>Sign out</strong> — bottom, bordered, in our muted red.</li>
+              </ol>
+
+              <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>VISUAL SYSTEM</div>
+              <p style={{ margin: '6px 0 0' }}>
+                Every section opens with a small uppercase <strong>eyebrow</strong> + a serif headline ("You've spent <em>$248.40</em>" / "Tastes &amp; <em>dislikes</em>"). The italic word does the visual work; the rest is structure.
+              </p>
+
+              <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>WHAT'S NEXT</div>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                <li>Each row is currently a stub — taps don't navigate. Tappable sub-screens for Edit profile, Notifications, Diet (full picker) come next.</li>
+                <li>Receipts/order history will live on a separate "Orders" tab.</li>
+              </ul>
+            </div>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Account">
+          <TweakText label="User name" value={tweaks.userName} onChange={(v) => setTweak('userName', v)} />
+          <TweakRadio
+            label="B — active tab"
+            value={tweaks.tabbedTab}
+            onChange={(v) => setTweak('tabbedTab', v)}
+            options={[
+              { value: 'profile', label: 'Profile' },
+              { value: 'payments', label: 'Payments' },
+              { value: 'preferences', label: 'Prefs' },
+              { value: 'help', label: 'Help' },
+            ]}
+          />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

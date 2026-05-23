@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Home</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="screens/data.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens/home.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (Inner, props) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={false} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <Inner {...props} />
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "heroState": "default",
+  "userName": "Adam"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection
+          id="home-states"
+          title="Home screen — three contexts"
+          subtitle="The hero card shifts based on what the user is most likely doing. Use Tweaks (toolbar) or scroll to compare states side-by-side."
+        >
+          <DCArtboard
+            id="default"
+            label="Default — start a session"
+            width={cardW} height={cardH}
+            style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+          >
+            {wrapPhone(Home, { heroState: 'default', userName: tweaks.userName })}
+          </DCArtboard>
+
+          <DCArtboard
+            id="active"
+            label="Session in progress — live"
+            width={cardW} height={cardH}
+            style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+          >
+            {wrapPhone(Home, { heroState: 'active', userName: tweaks.userName })}
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="rationale"
+          title="Reasoning"
+          subtitle="Why this layout, in short."
+        >
+          <DCArtboard id="why" label="Why this layout" width={420} height={cardH} style={{ background: '#fffdf8' }}>
+            <div style={{
+              padding: 28, height: '100%', boxSizing: 'border-box',
+              fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+              color: '#1c1a17', overflow: 'auto',
+            }}>
+              <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+                The <span style={{ fontStyle: 'italic', color: '#3d6e4a' }}>orbit.</span>
+              </div>
+              <p style={{ marginTop: 0 }}>
+                Three user moods open this app: <strong>at the store now</strong> (urgent), <strong>planning</strong> (medium), <strong>browsing/managing</strong> (low). A flat icon-grid serves all of them equally — i.e. badly.
+              </p>
+
+              <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>HERO STATES</div>
+              <p style={{ margin: '6px 0 0' }}>
+                The big card adapts:
+              </p>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                <li><strong>Default</strong> — dark "Start a shopping session" with amber CTA. The expected state.</li>
+                <li><strong>List-ready</strong> — pale card surfacing your most recent unused list with item previews. Single tap to QR.</li>
+                <li><strong>Active session</strong> — green live-pulse with running total. Resume with one tap.</li>
+              </ul>
+
+              <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>RAILS BELOW</div>
+              <p style={{ margin: '6px 0 0' }}>
+                <strong>Your lists</strong> respects that lists exist independent of sessions — horizontally scrollable, with a "+ New list" tile.<br/>
+                <strong>Recent shops</strong> doubles as receipts archive entry-point.
+              </p>
+
+              <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TAB BAR</div>
+              <p style={{ margin: '6px 0 0' }}>
+                Five slots — <strong>Home · Lists · [Scan] · Orders · Account</strong>. The center elevated amber Scan is the QR shortcut, always one thumb-reach away. Account is where Settings lives.
+              </p>
+
+              <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TO DECIDE</div>
+              <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                <li>Greeting copy — "Hi, Adam." vs "Saturday, 4 May." vs "Good evening, Adam." Currently uses both: a label + greeting. Open to feedback.</li>
+                <li>Should the closest-store pill be tappable to <strong>switch stores</strong>? Probably yes.</li>
+                <li>Notification bell vs nothing — bell is there but minimal. Easy to remove if you'd rather keep top clean.</li>
+              </ol>
+            </div>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Home state">
+          <TweakRadio
+            label="Hero card"
+            value={tweaks.heroState}
+            onChange={(v) => setTweak('heroState', v)}
+            options={[
+              { value: 'default', label: 'Default' },
+              { value: 'active', label: 'Active' },
+            ]}
+          />
+          <TweakText label="User name" value={tweaks.userName} onChange={(v) => setTweak('userName', v)} />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

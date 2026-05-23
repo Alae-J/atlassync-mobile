@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Search</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="screens/data.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens/search.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (props) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={false} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <Search {...props} />
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="search-states"
+        title="Search — four states"
+        subtitle="Pushed modally over the tabs from the search affordance in the home header. Back affordance + input pinned at top; soft fade-to-cream beneath."
+      >
+        <DCArtboard
+          id="cold"
+          label="A. Cold — recent + browse aisles"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ state: 'cold' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="typing"
+          label="B. Typing — skeleton rows"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ state: 'typing', query: 'oli' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="results"
+          label="C. Results — row + price + add"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ state: 'results', query: 'ch' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="empty"
+          label="D. No results — serif, calm"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ state: 'empty', query: 'kombucha' })}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="search-interactions"
+        title="Tap the “+” — two outcomes"
+        subtitle="With an active session, the row's plus button confirms in place. Without one, the list-picker half sheet rises from below."
+      >
+        <DCArtboard
+          id="added-flicker"
+          label="Active session — soft green confirm"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ state: 'results', query: 'ch', addedId: 'chicken' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="list-sheet"
+          label="No session — list-picker half sheet"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ state: 'results', query: 'oli', sheetOpen: true, addedId: 'olive-oil' })}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="search-rationale"
+        title="Reasoning"
+        subtitle="Why this layout."
+      >
+        <DCArtboard id="why-search" label="Notes" width={420} height={cardH} style={{ background: '#fffdf8' }}>
+          <div style={{
+            padding: 28, height: '100%', boxSizing: 'border-box',
+            fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+            color: '#1c1a17', overflow: 'auto',
+          }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+              The <span style={{ fontStyle: 'italic', color: '#3d6e4a' }}>row.</span>
+            </div>
+            <p style={{ marginTop: 0 }}>
+              Row anatomy mirrors Product Detail exactly: cream-gradient thumb,
+              serif-adjacent sans name, muted brand, a strip of aisle + nutriscore + diet pills,
+              then price in Instrument Serif. Search and Detail feel like the same surface
+              because they <em>are</em> — the row is just a smaller Detail.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>BACK, NOT CANCEL</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The first iteration used a "Cancel" label on the right. Swapped to a back-arrow chip on the left
+              so it matches the back chip on every other pushed screen (Shop / List edit / etc.). The input
+              now gets the full row width.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>CHIPS, NOT ROWS</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Recent searches are chips — same language as the dietary chips on Account.
+              They're tappable historic states, not full navigation rows; chips communicate that.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>BROWSE BY AISLE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              When the user doesn't know what to type, give them somewhere to land.
+              Six entries cover the floor of a typical store. "Halal counter" is the named
+              alias for the meat aisle — that's what Egyptian users say.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>SKELETONS, NOT SPINNERS</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Typing state shows the shape of the results that are about to land — that's a
+              calmer, more confident loading state than a spinner. Plus a thin amber progress
+              hairline under the input.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TWO TAP TARGETS PER ROW</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The row body pushes Detail. The "+" chip is a separate, smaller target on the
+              right. It does the right thing depending on session state — same flicker as
+              the Detail CTA when in-store, same half-sheet otherwise. One row, two intents.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>EMPTY STATE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Italic-on-italic word in Instrument Serif. No illustration, no big icon.
+              Empty states are 0.5% of the time — they shouldn't get 90% of the design budget.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TO DECIDE</div>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li>Recent searches: a "Clear" link to the right of the eyebrow, or hide-on-tap-and-forget?</li>
+              <li>OOS items: rank to bottom automatically, or keep position with the "Out" chip (current)?</li>
+              <li>Should typing "halal" route to the aisle directly, or just filter the catalog like any other word?</li>
+            </ol>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
