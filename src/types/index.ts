@@ -93,3 +93,38 @@ export interface SessionInfo {
   status: string;
   createdAt: string;
 }
+
+/** Frozen line item snapshotted from the cart at payment time. */
+export interface ReceiptLineItem {
+  barcode: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  imageUrl: string | null;
+  addedAt: string | null;
+}
+
+/** Full receipt view — session metadata plus the frozen items list. */
+export interface ReceiptResponse {
+  sessionId: string;
+  userId: number;
+  storeId: number;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+  totalAmount: number | null;
+  itemCount: number | null;
+  items: ReceiptLineItem[];
+}
+
+/** Summary row for the Orders tab and Home "Recent Shops" list. */
+export interface SessionHistoryItem {
+  sessionId: string;
+  storeId: number;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+  totalAmount: number | null;
+  itemCount: number | null;
+}
