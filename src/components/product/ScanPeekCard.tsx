@@ -9,7 +9,7 @@ import Animated, {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import { Check, ArrowCounterClockwise, CaretRight, Warning, Wifi } from 'phosphor-react-native';
+import { Check, ArrowCounterClockwise, CaretRight, Warning, WifiHigh } from 'phosphor-react-native';
 import { Colors, Fonts, Radius } from '../../constants/theme';
 import type { DisplayProduct } from '../../lib/productDisplay';
 import { ProductThumb } from './ProductThumb';
@@ -183,7 +183,7 @@ export function ScanPeekCard({ peek, onDismiss, onSeeDetails, onUndo, onTryAgain
         {showRfid && (
           <View style={styles.rfidNote}>
             <View style={styles.rfidIcon}>
-              <Wifi size={12} color={Colors.amber} weight="regular" />
+              <WifiHigh size={12} color={Colors.amber} weight="regular" />
             </View>
             <Text style={styles.rfidText}>
               <Text style={styles.rfidStrong}>RFID secured.</Text>{' '}

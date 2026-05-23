@@ -1,51 +1,97 @@
-import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withTiming,
   Easing,
+  withSequence,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, ShoppingBag, Check, Barcode } from 'phosphor-react-native';
+import { X, Barcode, ArrowRight, MusicNote } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius } from '../../src/constants/theme';
-import { productById } from '../../src/data/catalog';
+import { productsApi } from '../../src/api';
 import { useSession } from '../../src/context/SessionContext';
-import type { CartItem } from '../../src/types';
+import { toDisplayProduct } from '../../src/lib/productDisplay';
+import {
+  ScanPeekCard,
+  ScanTotalsStrip,
+  determinePeek,
+  type ScanPeek,
+} from '../../src/components/product';
 
-const remainingIds = ['milk', 'avocado', 'chicken', 'olive-oil', 'bread', 'eggs'];
 const SIMULATE_BARCODES = ['1234567890', '2345678901', '3456789012'];
+const UNKNOWN_FALLBACK = '5901234123457';
+
+const USER_DIETARY = ['Halal', 'No pork', 'Low sugar', 'No alcohol'];
+const USER_ALLERGENS = ['Milk', 'Shellfish'];
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
-  const { sessionId, cart, refreshCart, scanItem } = useSession();
+  const { sessionId, cart, refreshCart, scanItem, removeItem } = useSession();
   const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState<string | null>(null);
+  const [peek, setPeek] = useState<ScanPeek>({ kind: 'idle' });
+  const [freshnessTick, setFreshnessTick] = useState(0);
+  const [lastBarcode, setLastBarcode] = useState<string | null>(null);
 
   useEffect(() => {
     if (sessionId) refreshCart().catch(() => undefined);
   }, [sessionId, refreshCart]);
 
-  const simulateScan = async () => {
+  const simulateScan = useCallback(async () => {
     if (scanning || !sessionId) return;
     setScanning(true);
-    setScanError(null);
     const barcode = SIMULATE_BARCODES[Math.floor(Math.random() * SIMULATE_BARCODES.length)];
+    setLastBarcode(barcode);
+
     try {
       await scanItem(barcode);
+      try {
+        const raw = await productsApi.byBarcode(barcode);
+        const product = toDisplayProduct(raw);
+        setPeek(determinePeek(product, USER_ALLERGENS, USER_DIETARY));
+      } catch {
+        // Product fetched for enrichment failed -- still confirm the add with a
+        // minimal peek using whatever the cart returned.
+        setPeek({ kind: 'idle' });
+      }
+      setFreshnessTick((t) => t + 1);
     } catch {
-      setScanError('Item not found. Try another.');
+      setPeek({ kind: 'unknown', barcode: barcode || UNKNOWN_FALLBACK });
     } finally {
       setScanning(false);
     }
-  };
+  }, [scanning, sessionId, scanItem]);
 
-  const totalSoFar = cart?.total ?? 0;
-  const lastItem: CartItem | null = cart?.items.length ? cart.items[cart.items.length - 1] : null;
+  const handleUndo = useCallback(async () => {
+    if (!lastBarcode) return;
+    try {
+      await removeItem(lastBarcode);
+      setFreshnessTick((t) => t + 1);
+    } catch {
+      // Best-effort — even if the remove fails, dismissing the card is correct UX.
+    }
+    setPeek({ kind: 'idle' });
+    setLastBarcode(null);
+  }, [lastBarcode, removeItem]);
 
+  const handleSeeDetails = useCallback((barcode: string) => {
+    setPeek({ kind: 'idle' });
+    router.push({ pathname: '/product/[barcode]', params: { barcode } });
+  }, []);
+
+  const handleTryAgain = useCallback(() => {
+    setPeek({ kind: 'idle' });
+  }, []);
+
+  const dismiss = useCallback(() => {
+    setPeek({ kind: 'idle' });
+  }, []);
+
+  // Scanline animation — preserved from the original.
   const scanProgress = useSharedValue(0);
   useEffect(() => {
     scanProgress.value = withRepeat(
@@ -54,11 +100,27 @@ export default function ScanScreen() {
       true,
     );
   }, [scanProgress]);
-
   const scanlineStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: -90 + scanProgress.value * 180 }],
     opacity: 0.4 + scanProgress.value * 0.6,
   }));
+
+  // Pulsing dot on the SCANNING chip.
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(0.35, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+  }, [pulse]);
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+
+  const itemCount = cart?.itemCount ?? 0;
+  const total = cart?.total ?? 0;
 
   return (
     <View style={styles.root}>
@@ -66,7 +128,7 @@ export default function ScanScreen() {
         colors={[Colors.dark, Colors.ember, Colors.dark]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill as never}
+        style={StyleSheet.absoluteFill}
       />
       <LinearGradient
         colors={['rgba(200,122,58,0.18)', 'transparent']}
@@ -85,12 +147,14 @@ export default function ScanScreen() {
         <Pressable style={styles.iconBtn} onPress={() => router.back()}>
           <X size={16} color={Colors.cream} weight="bold" />
         </Pressable>
-        <View style={styles.cartPill}>
-          <Text style={styles.cartLabel}>CART</Text>
-          <Text style={styles.cartAmount}>${totalSoFar.toFixed(2)}</Text>
+
+        <View style={styles.scanningChip}>
+          <Animated.View style={[styles.scanningDot, pulseStyle]} />
+          <Text style={styles.scanningLabel}>SCANNING</Text>
         </View>
+
         <Pressable style={styles.iconBtn}>
-          <ShoppingBag size={16} color={Colors.cream} weight="regular" />
+          <MusicNote size={16} color={Colors.cream} weight="regular" />
         </Pressable>
       </View>
 
@@ -101,79 +165,41 @@ export default function ScanScreen() {
           ))}
           <View style={styles.framePlaceholder}>
             <Barcode size={32} color="rgba(244,237,224,0.55)" weight="thin" />
-            <Text style={styles.frameHint}>{scanning ? 'Adding…' : 'Tap to simulate scan'}</Text>
+            <Text style={styles.frameHint}>
+              {scanning ? 'Adding…' : 'Tap to simulate scan'}
+            </Text>
           </View>
           <Animated.View style={[styles.scanline, scanlineStyle]}>
             <LinearGradient
               colors={['transparent', Colors.amber, 'transparent']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
-              style={StyleSheet.absoluteFill as never}
+              style={StyleSheet.absoluteFill}
             />
           </Animated.View>
         </Pressable>
+
+        <Pressable style={styles.searchEscape} onPress={() => router.push('/search')}>
+          <Text style={styles.searchEscapeText}>No barcode? Search manually</Text>
+          <ArrowRight size={11} color="rgba(244,237,224,0.65)" weight="regular" />
+        </Pressable>
       </View>
 
-      {lastItem && (
-        <Pressable style={styles.toast} onPress={simulateScan}>
-          <View style={styles.toastThumb}>
-            <LinearGradient
-              colors={[Colors.tile, Colors.tileDeep]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill as never}
-            />
-            <Text style={styles.toastEmoji}>📦</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.toastTopRow}>
-              <Check size={12} color={Colors.accent} weight="bold" />
-              <Text style={styles.toastEyebrow}>ADDED TO CART</Text>
-            </View>
-            <Text style={styles.toastName}>{lastItem.productName}</Text>
-            <Text style={styles.toastMeta}>
-              {lastItem.quantity} × ${lastItem.priceAtAddition.toFixed(2)}
-            </Text>
-          </View>
-          <Pressable>
-            <Text style={styles.undoText}>Undo</Text>
-          </Pressable>
-        </Pressable>
-      )}
+      <ScanPeekCard
+        peek={peek}
+        onDismiss={dismiss}
+        onSeeDetails={handleSeeDetails}
+        onUndo={handleUndo}
+        onTryAgain={handleTryAgain}
+      />
 
-      {scanError && <Text style={styles.scanErrorText}>{scanError}</Text>}
-
-      <View style={[styles.peekSheet, { paddingBottom: insets.bottom + 22 }]}>
-        <View style={styles.handle} />
-        <View style={styles.peekHeader}>
-          <Text style={styles.peekTitle}>Still to grab</Text>
-          <Text style={styles.peekCount}>
-            {remainingIds.length} left · 1 done
-          </Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peekRow}>
-          {remainingIds.map((id) => {
-            const p = productById(id);
-            if (!p) return null;
-            return (
-              <View key={id} style={styles.peekTile}>
-                <View style={styles.peekTileEmoji}>
-                  <LinearGradient
-                    colors={[Colors.tile, Colors.tileDeep]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill as never}
-                  />
-                  <Text style={styles.peekEmojiText}>{p.emoji}</Text>
-                </View>
-                <Text style={styles.peekName} numberOfLines={1}>{p.name.split(' ')[0]}</Text>
-              </View>
-            );
-          })}
-        </ScrollView>
-        <Pressable style={styles.peekCta} onPress={() => router.push('/shop/review')}>
-          <Text style={styles.peekCtaText}>Review & checkout</Text>
-        </Pressable>
+      <View style={[styles.totalsWrap, { paddingBottom: insets.bottom + 18 }]}>
+        <ScanTotalsStrip
+          itemCount={itemCount}
+          total={total}
+          freshnessTick={freshnessTick}
+          onPress={() => router.push('/shop/review')}
+        />
       </View>
     </View>
   );
@@ -207,29 +233,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cartPill: {
+  scanningChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    borderRadius: 999,
     backgroundColor: Colors.whiteGlassFill,
   },
-  cartLabel: {
-    fontFamily: Fonts.sansSemibold,
-    fontSize: 9.5,
-    letterSpacing: 1.2,
-    color: 'rgba(244,237,224,0.65)',
+  scanningDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.amber,
   },
-  cartAmount: {
-    fontFamily: Fonts.serif,
-    fontSize: 18,
-    letterSpacing: -0.2,
+  scanningLabel: {
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 11,
+    letterSpacing: 1,
     color: Colors.cream,
   },
 
-  viewfinder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  viewfinder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
   frame: { width: 240, height: 240 },
   cornerBase: {
     position: 'absolute',
@@ -257,108 +288,24 @@ const styles = StyleSheet.create({
     height: 2,
   },
 
-  toast: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: Colors.cream,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  searchEscape: {
+    marginTop: 18,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.45,
-    shadowRadius: 40,
-    elevation: 10,
+    gap: 6,
   },
-  toastThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toastEmoji: { fontSize: 22 },
-  toastTopRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  toastEyebrow: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    color: Colors.accent,
-  },
-  toastName: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.ink, marginTop: 2 },
-  toastMeta: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted },
-  undoText: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Colors.muted, paddingHorizontal: 8 },
-  scanErrorText: {
+  searchEscapeText: {
     fontFamily: Fonts.sansMedium,
-    fontSize: 12,
-    color: Colors.amber,
-    textAlign: 'center',
-    marginBottom: 8,
+    fontSize: 12.5,
+    color: 'rgba(244,237,224,0.65)',
+    textDecorationLine: 'underline',
+    textDecorationColor: 'rgba(244,237,224,0.25)',
   },
 
-  peekSheet: {
-    backgroundColor: Colors.cream,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 22,
-    paddingTop: 10,
+  totalsWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 4,
   },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(21,20,15,0.18)',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  peekHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 10,
-  },
-  peekTitle: { fontFamily: Fonts.serif, fontSize: 22, letterSpacing: -0.4, color: Colors.ink },
-  peekCount: { fontFamily: Fonts.sans, fontSize: 12, color: Colors.muted },
-  peekRow: { gap: 8 },
-  peekTile: {
-    width: 76,
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 10,
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.lineFaint,
-  },
-  peekTileEmoji: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  peekEmojiText: { fontSize: 22 },
-  peekName: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 10.5,
-    color: Colors.ink,
-    width: '100%',
-    textAlign: 'center',
-  },
-  peekCta: {
-    marginTop: 14,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: Colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  peekCtaText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.cream },
 });
