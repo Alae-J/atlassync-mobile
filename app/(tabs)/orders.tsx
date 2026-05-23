@@ -1,17 +1,37 @@
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { ShoppingBag } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
+import { sessionsApi } from '../../src/api';
+import type { SessionHistoryItem } from '../../src/types';
+import { formatShortDate } from '../../src/lib/receiptDates';
 
-const orders = [
-  { date: 'Last Saturday', total: 42.18, items: 12, store: 'Aldi · Mansoura' },
-  { date: 'Apr 24', total: 28.5, items: 8, store: 'Marina Foods' },
-  { date: 'Apr 17', total: 51.3, items: 15, store: 'Aldi · Mansoura' },
-  { date: 'Apr 12', total: 19.99, items: 4, store: 'Marina Foods' },
-];
+const STORE_NAMES: Record<number, string> = { 1: 'Aldi · Mansoura' };
 
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
+  const [history, setHistory] = useState<SessionHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    sessionsApi
+      .history()
+      .then((rows) => {
+        if (!cancelled) setHistory(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -28,29 +48,61 @@ export default function OrdersScreen() {
             Recent <Text style={styles.titleItalic}>shops</Text>
           </Text>
           <Text style={styles.subtitle}>
-            {orders.length} orders this month · receipts archived automatically
+            {history.length === 0 && !loading
+              ? 'No trips yet — your first one will land here.'
+              : `${history.length} trip${history.length === 1 ? '' : 's'} · receipts archived automatically`}
           </Text>
         </View>
 
-        <View style={styles.list}>
-          {orders.map((order, i) => (
-            <View key={i} style={styles.row}>
-              <View style={styles.icon}>
-                <ShoppingBag size={16} color={Colors.muted} weight="regular" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowDate}>{order.date}</Text>
-                <Text style={styles.rowMeta}>
-                  {order.store} · {order.items} items
+        {loading ? (
+          <View style={styles.spinner}>
+            <ActivityIndicator color={Colors.amber} />
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {history.map((order) => (
+              <Pressable
+                key={order.sessionId}
+                style={styles.row}
+                onPress={() =>
+                  router.push({ pathname: '/order/[id]', params: { id: order.sessionId } })
+                }
+              >
+                <View style={styles.icon}>
+                  <ShoppingBag size={16} color={Colors.muted} weight="regular" />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.rowDate}>{formatShortDate(order.createdAt)}</Text>
+                  <Text style={styles.rowMeta} numberOfLines={1}>
+                    {STORE_NAMES[order.storeId] ?? `Store ${order.storeId}`}
+                    {order.itemCount ? ` · ${order.itemCount} items` : ''}
+                    {order.status !== 'COMPLETED' ? ` · ${labelFor(order.status)}` : ''}
+                  </Text>
+                </View>
+                <Text style={styles.rowAmount}>
+                  ${(order.totalAmount ?? 0).toFixed(2)}
                 </Text>
-              </View>
-              <Text style={styles.rowAmount}>${order.total.toFixed(2)}</Text>
-            </View>
-          ))}
-        </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
+}
+
+function labelFor(status: string): string {
+  switch (status) {
+    case 'CANCELLED':
+      return 'cancelled';
+    case 'CREATED':
+    case 'ACTIVE':
+      return 'in progress';
+    case 'PAYING':
+      return 'paying';
+    default:
+      return status.toLowerCase();
+  }
 }
 
 const styles = StyleSheet.create({
@@ -75,6 +127,8 @@ const styles = StyleSheet.create({
   },
   titleItalic: { fontFamily: Fonts.serifItalic },
   subtitle: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted, marginTop: 8 },
+
+  spinner: { paddingVertical: 36, alignItems: 'center' },
 
   list: { gap: 8 },
   row: {

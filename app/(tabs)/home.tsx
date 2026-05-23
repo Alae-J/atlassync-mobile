@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,21 +8,32 @@ import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constant
 import { savedLists, productById } from '../../src/data/catalog';
 import { useAuth } from '../../src/context/AuthContext';
 import { firstName } from '../../src/lib/userDisplay';
+import { sessionsApi } from '../../src/api';
+import type { SessionHistoryItem } from '../../src/types';
+import { formatShortDate } from '../../src/lib/receiptDates';
 
 type HeroState = 'default' | 'active';
 
 const heroState: HeroState = 'default';
 
-const recentShops = [
-  { date: 'Last Saturday', total: 42.18, items: 12 },
-  { date: 'Apr 24', total: 28.5, items: 8 },
-  { date: 'Apr 17', total: 51.3, items: 15 },
-];
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const greetingName = firstName(user);
+
+  const [recentShops, setRecentShops] = useState<SessionHistoryItem[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    sessionsApi
+      .history(3)
+      .then((rows) => {
+        if (!cancelled) setRecentShops(rows);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -138,18 +150,27 @@ export default function HomeScreen() {
             </Pressable>
           </View>
           <View>
-            {recentShops.map((shop, i) => (
-              <Pressable key={i} style={styles.shopRow} onPress={() => router.push('/(tabs)/orders')}>
+            {recentShops.map((shop) => (
+              <Pressable
+                key={shop.sessionId}
+                style={styles.shopRow}
+                onPress={() =>
+                  router.push({ pathname: '/order/[id]', params: { id: shop.sessionId } })
+                }
+              >
                 <View style={styles.shopIcon}>
                   <ShoppingBag size={14} color={Colors.muted} weight="regular" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.shopDate}>{shop.date}</Text>
-                  <Text style={styles.shopMeta}>{shop.items} items</Text>
+                  <Text style={styles.shopDate}>{formatShortDate(shop.createdAt)}</Text>
+                  <Text style={styles.shopMeta}>{shop.itemCount ?? 0} items</Text>
                 </View>
-                <Text style={styles.shopAmount}>${shop.total.toFixed(2)}</Text>
+                <Text style={styles.shopAmount}>${(shop.totalAmount ?? 0).toFixed(2)}</Text>
               </Pressable>
             ))}
+            {recentShops.length === 0 && (
+              <Text style={styles.shopEmpty}>No trips yet. Your first receipt lands here.</Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -471,6 +492,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shopDate: { fontFamily: Fonts.sansMedium, fontSize: 13.5, color: Colors.ink },
+  shopEmpty: {
+    fontFamily: Fonts.sans,
+    fontSize: 12.5,
+    color: Colors.muted,
+    paddingVertical: 14,
+  },
   shopMeta: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted, marginTop: 2 },
   shopAmount: { fontFamily: Fonts.serif, fontSize: 18, letterSpacing: -0.3, color: Colors.ink },
 });
