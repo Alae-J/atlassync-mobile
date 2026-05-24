@@ -4,14 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Check } from 'phosphor-react-native';
 import { router } from 'expo-router';
+import QRCode from 'react-native-qrcode-svg';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { useSession } from '../../src/context/SessionContext';
 
-const BARCODE_WIDTHS = [2, 4, 1, 3, 2, 5, 1, 2, 4, 2, 1, 3, 4, 2, 1, 5, 2, 3, 1, 2, 4, 2, 1, 3, 2, 4, 1, 3, 2];
-
 export default function WalkoutScreen() {
   const insets = useSafeAreaInsets();
-  const { sessionId, validateExit, cart, reset } = useSession();
+  const { sessionId, validateExit, cart, exitQr, reset } = useSession();
 
   useEffect(() => {
     validateExit().catch(() => undefined);
@@ -77,14 +76,23 @@ export default function WalkoutScreen() {
           <View style={[styles.ticketPerf, styles.ticketPerfRight]} />
           <View style={styles.ticketTopRow}>
             <Text style={styles.ticketLabel}>GATE PASS</Text>
-            <Text style={styles.ticketLabel}>MARINA · 9:42 AM</Text>
+            <Text style={styles.ticketLabel}>SCAN AT EXIT</Text>
           </View>
-          <Text style={styles.ticketCode}>8 4 · 2 1</Text>
-          <View style={styles.barcodeRow}>
-            {BARCODE_WIDTHS.map((w, i) => (
-              <View key={i} style={[styles.bar, { width: w }]} />
-            ))}
+          <View style={styles.qrWrap}>
+            {exitQr ? (
+              <QRCode
+                value={exitQr.correlationId}
+                size={148}
+                backgroundColor={Colors.cream}
+                color={Colors.ink}
+              />
+            ) : (
+              <View style={[styles.qrFallback, { width: 148, height: 148 }]} />
+            )}
           </View>
+          <Text style={styles.ticketCode} numberOfLines={1}>
+            {exitQr ? exitQr.correlationId.slice(0, 8).toUpperCase() : '— · —'}
+          </Text>
           <View style={styles.ticketBottomRow}>
             <Text style={styles.ticketBottomText}>{itemCount} items</Text>
             <Text style={styles.ticketBottomText}>
@@ -202,23 +210,28 @@ const styles = StyleSheet.create({
     color: 'rgba(244,237,224,0.6)',
   },
   ticketCode: {
-    fontFamily: Fonts.serif,
-    fontSize: 38,
-    lineHeight: 42,
-    letterSpacing: 6,
-    color: Colors.cream,
+    fontFamily: 'Menlo',
+    fontSize: 12,
+    letterSpacing: 2,
+    color: 'rgba(244,237,224,0.55)',
     textAlign: 'center',
-    marginBottom: 14,
+    marginTop: 10,
+    marginBottom: 6,
     includeFontPadding: false,
   },
-  barcodeRow: {
-    flexDirection: 'row',
-    gap: 1.5,
-    height: 36,
+  qrWrap: {
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'stretch',
+    backgroundColor: Colors.cream,
+    padding: 10,
+    borderRadius: 12,
+    alignSelf: 'center',
+    marginBottom: 4,
   },
-  bar: { backgroundColor: Colors.cream, borderRadius: 1, opacity: 0.9 },
+  qrFallback: {
+    backgroundColor: 'rgba(244,237,224,0.15)',
+    borderRadius: 8,
+  },
   ticketBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

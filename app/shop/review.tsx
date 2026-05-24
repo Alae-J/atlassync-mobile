@@ -11,9 +11,22 @@ const TAX_RATE = 0.0875;
 
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();
-  const { cart, refreshCart, pay } = useSession();
+  const { cart, refreshCart, pay, sessionId } = useSession();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pressing back from review should land on scan, not whatever the nested
+  // Stack thinks is "previous" — depending on whether the user took the
+  // search detour the stack history might point to /shop/arrive instead.
+  const handleBack = () => {
+    if (sessionId) {
+      router.replace('/shop/scan');
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/home');
+    }
+  };
 
   useEffect(() => {
     refreshCart().catch(() => undefined);
@@ -49,7 +62,7 @@ export default function ReviewScreen() {
       />
 
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable style={styles.iconBtn} onPress={() => router.back()}>
+        <Pressable style={styles.iconBtn} onPress={handleBack}>
           <ArrowLeft size={16} color={Colors.ink} weight="bold" />
         </Pressable>
         <Text style={styles.headerLabel}>REVIEW & PAY</Text>

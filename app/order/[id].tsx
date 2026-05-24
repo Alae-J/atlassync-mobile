@@ -129,7 +129,12 @@ export default function OrderDetailScreen() {
         <WalkoutHeader
           insetsTop={insets.top}
           firstNameLabel={firstName(user) || 'there'}
-          onClose={() => router.replace('/(tabs)/home')}
+          // X on the walkout receipt returns to the gate-pass screen — the
+          // user dismisses to home from the walkout "Done" button, not here.
+          onClose={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/shop/walkout');
+          }}
         />
       ) : (
         <PastHeader insetsTop={insets.top} onBack={() => router.back()} />
