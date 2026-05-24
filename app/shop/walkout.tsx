@@ -11,7 +11,7 @@ const BARCODE_WIDTHS = [2, 4, 1, 3, 2, 5, 1, 2, 4, 2, 1, 3, 4, 2, 1, 5, 2, 3, 1,
 
 export default function WalkoutScreen() {
   const insets = useSafeAreaInsets();
-  const { validateExit, cart, reset } = useSession();
+  const { sessionId, validateExit, cart, reset } = useSession();
 
   useEffect(() => {
     validateExit().catch(() => undefined);
@@ -20,6 +20,11 @@ export default function WalkoutScreen() {
   const handleDone = () => {
     reset();
     router.replace('/(tabs)/home');
+  };
+
+  const handleReceipt = () => {
+    if (!sessionId) return;
+    router.push({ pathname: '/order/[id]', params: { id: sessionId, mode: 'walkout' } });
   };
 
   const total = cart?.total ?? 0;
@@ -44,7 +49,7 @@ export default function WalkoutScreen() {
 
       <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
         <View style={styles.spacer} />
-        <Pressable style={styles.receiptBtn}>
+        <Pressable style={styles.receiptBtn} onPress={handleReceipt}>
           <Text style={styles.receiptBtnText}>Receipt</Text>
         </Pressable>
       </View>
