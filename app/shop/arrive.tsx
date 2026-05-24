@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { savedLists, productById } from '../../src/data/catalog';
 import { useSession } from '../../src/context/SessionContext';
+import { gateApi } from '../../src/api';
 
 export default function ArriveScreen() {
   const insets = useSafeAreaInsets();
@@ -18,7 +19,15 @@ export default function ArriveScreen() {
     if (isStarting) return;
     setError(null);
     try {
-      await startSession();
+      // Mint the session, then immediately call gate-entry with the issued
+      // QR to flip it CREATED → ACTIVE. In a real store a fixed gate scanner
+      // does this on the user's behalf; in dev/testing without a gate, the
+      // mobile app fakes the scan against its own QR.
+      const res = await startSession();
+      await gateApi.entry({
+        payload: res.entryQr.payload,
+        signature: res.entryQr.signature,
+      });
       router.push('/shop/scan');
     } catch {
       setError('Could not start a session. Try again.');
