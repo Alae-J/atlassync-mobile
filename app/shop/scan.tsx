@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { X, Barcode, ArrowRight, MusicNote } from 'phosphor-react-native';
 import { router } from 'expo-router';
-import { Colors, Fonts, Radius } from '../../src/constants/theme';
+import { Colors, Fonts } from '../../src/constants/theme';
 import { productsApi } from '../../src/api';
 import { useSession } from '../../src/context/SessionContext';
 import { toDisplayProduct } from '../../src/lib/productDisplay';
@@ -188,23 +188,44 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.root}>
+      {/* Layer 0 — fallback backdrop when there's no live camera (denied
+          permission, web/simulator). Hidden behind the camera once granted. */}
       <LinearGradient
         colors={[Colors.dark, Colors.ember, Colors.dark]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+
+      {/* Layer 1 — the camera preview itself, fullscreen behind every chrome
+          element. iOS-camera style: brackets + scanline are guides on top. */}
+      {cameraReady && (
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: [...BARCODE_TYPES] }}
+          onBarcodeScanned={(result) => {
+            if (result?.data) void handleScannedBarcode(result.data);
+          }}
+        />
+      )}
+
+      {/* Layer 2 — subtle dark scrims so the top bar + bottom strip stay
+          legible against bright camera scenes. The middle of the screen
+          (where the viewfinder lives) stays clear so the user can frame. */}
       <LinearGradient
-        colors={['rgba(200,122,58,0.18)', 'transparent']}
-        start={{ x: 0.5, y: 0.45 }}
+        colors={['rgba(13,12,10,0.65)', 'rgba(13,12,10,0)']}
+        start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
-        style={styles.glowAmber}
+        style={styles.topScrim}
+        pointerEvents="none"
       />
       <LinearGradient
-        colors={['rgba(45,90,61,0.18)', 'transparent']}
-        start={{ x: 0.3, y: 0.3 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.glowGreen}
+        colors={['rgba(13,12,10,0)', 'rgba(13,12,10,0.75)']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.bottomScrim}
+        pointerEvents="none"
       />
 
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
@@ -224,19 +245,6 @@ export default function ScanScreen() {
 
       <View style={styles.viewfinder}>
         <Pressable style={styles.frame} onPress={simulateTap}>
-          {cameraReady && (
-            <View style={styles.cameraClip}>
-              <CameraView
-                style={StyleSheet.absoluteFill}
-                facing="back"
-                barcodeScannerSettings={{ barcodeTypes: [...BARCODE_TYPES] }}
-                onBarcodeScanned={(result) => {
-                  if (result?.data) void handleScannedBarcode(result.data);
-                }}
-              />
-            </View>
-          )}
-
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
             <View key={c} style={[styles.cornerBase, cornerStyles[c]]} />
           ))}
@@ -294,8 +302,24 @@ const cornerStyles = {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.dark },
-  glowAmber: { position: 'absolute', top: '15%', left: '15%', right: '15%', height: 360 },
-  glowGreen: { position: 'absolute', top: '20%', left: 0, width: 320, height: 280 },
+
+  // Scrims darken the very top and bottom so chrome reads against a bright
+  // camera scene. Heights tuned to cover the top bar + the totals strip while
+  // leaving the middle (the viewfinder) crystal-clear.
+  topScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+  },
+  bottomScrim: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+  },
 
   topBar: {
     paddingHorizontal: 18,
@@ -341,13 +365,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   frame: { width: 240, height: 240 },
-  // Clip the camera preview to the inside of the frame so it stays within the
-  // corner brackets even though CameraView paints a full rectangle.
-  cameraClip: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-  },
   cornerBase: {
     position: 'absolute',
     width: cornerSize,
