@@ -97,12 +97,25 @@ export default function ScanScreen() {
           const raw = await productsApi.byBarcode(barcode);
           const product = toDisplayProduct(raw);
           setPeek(determinePeek(product, USER_ALLERGENS, USER_DIETARY));
-        } catch {
+        } catch (enrichError) {
           // Enrichment failed -- still confirm the add but keep the peek silent.
+          console.warn('[scan] product enrichment failed for', barcode, enrichError);
           setPeek({ kind: 'idle' });
         }
         setFreshnessTick((t) => t + 1);
-      } catch {
+      } catch (addError) {
+        // The add-to-cart call rejected. Most often: no active session, stale
+        // sessionId, or cart-service couldn't reach product-service. Surface
+        // the actual response so we can diagnose from Metro.
+        const status = (addError as { response?: { status?: number } })?.response?.status;
+        const data = (addError as { response?: { data?: unknown } })?.response?.data;
+        console.warn(
+          '[scan] addItem rejected — barcode=%s sessionId=%s status=%s body=%o',
+          barcode,
+          sessionId,
+          status ?? 'no response',
+          data ?? (addError instanceof Error ? addError.message : addError),
+        );
         setPeek({ kind: 'unknown', barcode: barcode || UNKNOWN_FALLBACK });
       } finally {
         setScanning(false);
