@@ -25,6 +25,8 @@ export const Endpoints = {
     login: '/api/auth/login',
     refresh: '/api/auth/refresh',
     logout: '/api/auth/logout',
+    sendEmailVerification: '/api/auth/email/send-verification',
+    verifyEmail: '/api/auth/email/verify',
   },
   products: {
     byBarcode: (barcode: string) => `/api/products/${barcode}`,

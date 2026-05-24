@@ -167,7 +167,7 @@ function ProfileTab() {
       <Card>
         <Row icon={<UserIcon size={16} color={Colors.amber} weight="regular" />} label="Full name" value={displayName(user)} />
         <Row icon={<Phone size={16} color={Colors.amber} weight="regular" />} label="Phone number" value="Not set" />
-        <Row icon={<Envelope size={16} color={Colors.amber} weight="regular" />} label="Email" value={user?.email ?? 'Not set'} />
+        <EmailRow user={user} />
         <Row icon={<ShieldCheck size={16} color={Colors.amber} weight="regular" />} label="Password" value="Change" />
         <Row icon={<ImageIcon size={16} color={Colors.amber} weight="regular" />} label="Profile photo" value="Upload" last />
       </Card>
@@ -341,6 +341,30 @@ function Row({ icon, label, value, last }: RowProps) {
   );
 }
 
+function EmailRow({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
+  const verified = !!user?.emailVerified;
+  return (
+    <Pressable
+      onPress={verified ? undefined : () => router.push('/auth/verify-email')}
+      style={[styles.row, styles.rowDivider]}
+    >
+      <View style={styles.rowIcon}>
+        <Envelope size={16} color={Colors.amber} weight="regular" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowLabel}>{user?.email ?? 'Not set'}</Text>
+        <View style={styles.emailStatusRow}>
+          <View style={[styles.statusDot, verified ? styles.statusDotOk : styles.statusDotWarn]} />
+          <Text style={[styles.emailStatus, verified ? styles.emailStatusOk : styles.emailStatusWarn]}>
+            {verified ? 'Verified' : 'Unverified · Verify now'}
+          </Text>
+        </View>
+      </View>
+      {!verified && <CaretRight size={14} color={Colors.amber} weight="bold" />}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
 
@@ -450,6 +474,14 @@ const styles = StyleSheet.create({
   },
   rowLabel: { flex: 1, fontFamily: Fonts.sans, fontSize: 14.5, color: Colors.ink },
   rowValue: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted },
+
+  emailStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusDotOk: { backgroundColor: Colors.accent },
+  statusDotWarn: { backgroundColor: Colors.amber },
+  emailStatus: { fontFamily: Fonts.sansMedium, fontSize: 11.5 },
+  emailStatusOk: { color: Colors.accent },
+  emailStatusWarn: { color: Colors.amber },
 
   loyaltyCard: {
     backgroundColor: Colors.ink,

@@ -9,6 +9,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  applyAuthResponse: (response: AuthResponse) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: response.email,
       username: response.username,
       role: response.role,
+      emailVerified: response.emailVerified,
     };
     await tokenStorage.set(response.accessToken, response.refreshToken, next);
     setUser(next);
@@ -76,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        applyAuthResponse: persist,
       }}
     >
       {children}

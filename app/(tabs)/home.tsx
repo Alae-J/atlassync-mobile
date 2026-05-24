@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag } from 'phosphor-react-native';
+import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag, EnvelopeSimple } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
 import { savedLists, productById } from '../../src/data/catalog';
@@ -60,7 +60,11 @@ export default function HomeScreen() {
           <Text style={styles.storePillMuted}>· 1.2 km</Text>
         </View>
 
-        {heroState === 'default' ? <HeroDefault /> : <HeroActive />}
+        {heroState === 'default' ? (
+          user?.emailVerified ? <HeroDefault /> : <HeroVerifyEmail email={user?.email ?? null} />
+        ) : (
+          <HeroActive />
+        )}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -164,6 +168,29 @@ function HeroDefault() {
       <Pressable style={styles.heroCta} onPress={() => router.push('/shop/arrive')}>
         <QrCode size={16} color={Colors.ink} weight="regular" />
         <Text style={styles.heroCtaText}>Get my QR</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function HeroVerifyEmail({ email }: { email: string | null }) {
+  return (
+    <View style={styles.heroDefault}>
+      <LinearGradient
+        colors={['rgba(200,122,58,0.18)', 'transparent']}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0.4, y: 0.6 }}
+        style={StyleSheet.absoluteFill as never}
+      />
+      <Text style={styles.heroEyebrow}>ONE STEP LEFT</Text>
+      <Text style={styles.heroTitle}>Verify your</Text>
+      <Text style={[styles.heroTitle, styles.heroTitleItalic]}>email first.</Text>
+      <Text style={styles.heroDesc}>
+        Sessions unlock once {email ?? 'your email'} is confirmed. Takes about ten seconds.
+      </Text>
+      <Pressable style={styles.heroCta} onPress={() => router.push('/auth/verify-email')}>
+        <EnvelopeSimple size={16} color={Colors.ink} weight="regular" />
+        <Text style={styles.heroCtaText}>Verify now</Text>
       </Pressable>
     </View>
   );
