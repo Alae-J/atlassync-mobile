@@ -92,7 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const validateExit = useCallback(async () => {
     if (!exitQr) return;
-    await gateApi.exit({ payload: exitQr.payload, signature: exitQr.signature });
+    await gateApi.exit({ correlationId: exitQr.correlationId });
   }, [exitQr]);
 
   return (

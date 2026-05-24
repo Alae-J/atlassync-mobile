@@ -24,10 +24,7 @@ export default function ArriveScreen() {
       // does this on the user's behalf; in dev/testing without a gate, the
       // mobile app fakes the scan against its own QR.
       const res = await startSession();
-      await gateApi.entry({
-        payload: res.entryQr.payload,
-        signature: res.entryQr.signature,
-      });
+      await gateApi.entry({ correlationId: res.entryQr.correlationId });
       router.push('/shop/scan');
     } catch {
       setError('Could not start a session. Try again.');
