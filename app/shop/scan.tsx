@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { X, Barcode, ArrowRight, MusicNote } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius } from '../../src/constants/theme';
@@ -23,48 +24,100 @@ import {
   type ScanPeek,
 } from '../../src/components/product';
 
+// Dev-only fallback for the simulator / web where there's no camera. Tapping
+// the frame in __DEV__ fires one of these as if the camera scanned it.
 const SIMULATE_BARCODES = ['1234567890', '2345678901', '3456789012'];
 const UNKNOWN_FALLBACK = '5901234123457';
 
 const USER_DIETARY = ['Halal', 'No pork', 'Low sugar', 'No alcohol'];
 const USER_ALLERGENS = ['Milk', 'Shellfish'];
 
+// Two guardrails against the live camera firing the same scan dozens of times:
+// (1) the same barcode within this window is ignored, (2) any new scan is
+// ignored while a recognized peek is on screen so the user has time to react.
+const DEDUPE_WINDOW_MS = 2_000;
+
+// Barcode formats the scanner accepts. EAN-13/UPC-A cover most grocery items
+// in the wild; the rest are cheap to include and useful for testing.
+const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] as const;
+
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const { sessionId, cart, refreshCart, scanItem, removeItem } = useSession();
+  const [permission, requestPermission] = useCameraPermissions();
+
   const [scanning, setScanning] = useState(false);
   const [peek, setPeek] = useState<ScanPeek>({ kind: 'idle' });
   const [freshnessTick, setFreshnessTick] = useState(0);
   const [lastBarcode, setLastBarcode] = useState<string | null>(null);
 
+  // Cooldown ref kept outside React state so onBarcodeScanned can read the
+  // latest values without re-creating the camera handler every render.
+  const lastFireRef = useRef<{ barcode: string; at: number } | null>(null);
+
+  // Refresh the cart on mount + ask for camera permission once. Issue #9
+  // will surface the not-asked / denied state with a proper CTA; for now we
+  // request silently and fall back to the placeholder frame if it isn't
+  // granted yet so the screen never crashes.
   useEffect(() => {
     if (sessionId) refreshCart().catch(() => undefined);
   }, [sessionId, refreshCart]);
 
-  const simulateScan = useCallback(async () => {
-    if (scanning || !sessionId) return;
-    setScanning(true);
-    const barcode = SIMULATE_BARCODES[Math.floor(Math.random() * SIMULATE_BARCODES.length)];
-    setLastBarcode(barcode);
-
-    try {
-      await scanItem(barcode);
-      try {
-        const raw = await productsApi.byBarcode(barcode);
-        const product = toDisplayProduct(raw);
-        setPeek(determinePeek(product, USER_ALLERGENS, USER_DIETARY));
-      } catch {
-        // Product fetched for enrichment failed -- still confirm the add with a
-        // minimal peek using whatever the cart returned.
-        setPeek({ kind: 'idle' });
-      }
-      setFreshnessTick((t) => t + 1);
-    } catch {
-      setPeek({ kind: 'unknown', barcode: barcode || UNKNOWN_FALLBACK });
-    } finally {
-      setScanning(false);
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      requestPermission().catch(() => undefined);
     }
-  }, [scanning, sessionId, scanItem]);
+  }, [permission, requestPermission]);
+
+  const handleScannedBarcode = useCallback(
+    async (barcode: string) => {
+      if (!sessionId || scanning) return;
+
+      // Cooldown #1 — same barcode within the dedupe window. Live camera
+      // would otherwise fire 30+ times/sec while the code is in view.
+      const now = Date.now();
+      const last = lastFireRef.current;
+      if (last && last.barcode === barcode && now - last.at < DEDUPE_WINDOW_MS) {
+        return;
+      }
+
+      // Cooldown #2 — already showing the user a recognized peek. Let them
+      // act on it (undo / see details / wait for the drain) before piling on.
+      if (peek.kind === 'normal' || peek.kind === 'allergen' || peek.kind === 'rfid') {
+        return;
+      }
+
+      lastFireRef.current = { barcode, at: now };
+      setScanning(true);
+      setLastBarcode(barcode);
+
+      try {
+        await scanItem(barcode);
+        try {
+          const raw = await productsApi.byBarcode(barcode);
+          const product = toDisplayProduct(raw);
+          setPeek(determinePeek(product, USER_ALLERGENS, USER_DIETARY));
+        } catch {
+          // Enrichment failed -- still confirm the add but keep the peek silent.
+          setPeek({ kind: 'idle' });
+        }
+        setFreshnessTick((t) => t + 1);
+      } catch {
+        setPeek({ kind: 'unknown', barcode: barcode || UNKNOWN_FALLBACK });
+      } finally {
+        setScanning(false);
+      }
+    },
+    [scanning, sessionId, scanItem, peek.kind],
+  );
+
+  // Dev-mode fallback: simulator / web have no camera, so a tap on the frame
+  // still triggers a scan against one of the seeded simulate barcodes.
+  const simulateTap = useCallback(() => {
+    if (!__DEV__) return;
+    const barcode = SIMULATE_BARCODES[Math.floor(Math.random() * SIMULATE_BARCODES.length)];
+    void handleScannedBarcode(barcode);
+  }, [handleScannedBarcode]);
 
   const handleUndo = useCallback(async () => {
     if (!lastBarcode) return;
@@ -76,6 +129,7 @@ export default function ScanScreen() {
     }
     setPeek({ kind: 'idle' });
     setLastBarcode(null);
+    lastFireRef.current = null;
   }, [lastBarcode, removeItem]);
 
   const handleSeeDetails = useCallback((barcode: string) => {
@@ -85,6 +139,7 @@ export default function ScanScreen() {
 
   const handleTryAgain = useCallback(() => {
     setPeek({ kind: 'idle' });
+    lastFireRef.current = null;
   }, []);
 
   const dismiss = useCallback(() => {
@@ -121,6 +176,15 @@ export default function ScanScreen() {
 
   const itemCount = cart?.itemCount ?? 0;
   const total = cart?.total ?? 0;
+
+  const cameraReady = permission?.granted === true;
+  const hint = !cameraReady
+    ? __DEV__
+      ? 'Tap to simulate scan'
+      : 'Camera unavailable'
+    : scanning
+      ? 'Adding…'
+      : 'Aim at a barcode';
 
   return (
     <View style={styles.root}>
@@ -159,17 +223,32 @@ export default function ScanScreen() {
       </View>
 
       <View style={styles.viewfinder}>
-        <Pressable style={styles.frame} onPress={simulateScan}>
+        <Pressable style={styles.frame} onPress={simulateTap}>
+          {cameraReady && (
+            <View style={styles.cameraClip}>
+              <CameraView
+                style={StyleSheet.absoluteFill}
+                facing="back"
+                barcodeScannerSettings={{ barcodeTypes: [...BARCODE_TYPES] }}
+                onBarcodeScanned={(result) => {
+                  if (result?.data) void handleScannedBarcode(result.data);
+                }}
+              />
+            </View>
+          )}
+
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
             <View key={c} style={[styles.cornerBase, cornerStyles[c]]} />
           ))}
-          <View style={styles.framePlaceholder}>
-            <Barcode size={32} color="rgba(244,237,224,0.55)" weight="thin" />
-            <Text style={styles.frameHint}>
-              {scanning ? 'Adding…' : 'Tap to simulate scan'}
-            </Text>
+
+          <View style={styles.framePlaceholder} pointerEvents="none">
+            {!cameraReady && (
+              <Barcode size={32} color="rgba(244,237,224,0.55)" weight="thin" />
+            )}
+            <Text style={styles.frameHint}>{hint}</Text>
           </View>
-          <Animated.View style={[styles.scanline, scanlineStyle]}>
+
+          <Animated.View style={[styles.scanline, scanlineStyle]} pointerEvents="none">
             <LinearGradient
               colors={['transparent', Colors.amber, 'transparent']}
               start={{ x: 0, y: 0.5 }}
@@ -262,6 +341,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   frame: { width: 240, height: 240 },
+  // Clip the camera preview to the inside of the frame so it stays within the
+  // corner brackets even though CameraView paints a full rectangle.
+  cameraClip: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+  },
   cornerBase: {
     position: 'absolute',
     width: cornerSize,
@@ -278,7 +364,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     fontSize: 11.5,
     letterSpacing: 0.8,
-    color: 'rgba(244,237,224,0.55)',
+    color: 'rgba(244,237,224,0.85)',
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowRadius: 6,
   },
   scanline: {
     position: 'absolute',
