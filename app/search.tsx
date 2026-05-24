@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
@@ -46,6 +46,23 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
   const { isActive, scanItem } = useSession();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+
+  // `router.back()` would normally pop the previous route, but search is at
+  // root level so a push from a nested stack (e.g. /shop/scan) breaks the
+  // back trail and lands on whatever the parent tab last showed. The caller
+  // passes a `returnTo` to override that with an explicit destination.
+  const handleBack = useCallback(() => {
+    if (returnTo) {
+      router.replace(returnTo as never);
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/home');
+    }
+  }, [returnTo]);
 
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -172,7 +189,7 @@ export default function SearchScreen() {
       {/* Back + input row */}
       <View style={styles.topRow}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={handleBack}
           hitSlop={10}
           style={styles.backChip}
         >

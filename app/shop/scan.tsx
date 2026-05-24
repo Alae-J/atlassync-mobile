@@ -266,7 +266,12 @@ export default function ScanScreen() {
           </Animated.View>
         </Pressable>
 
-        <Pressable style={styles.searchEscape} onPress={() => router.push('/search')}>
+        <Pressable
+          style={styles.searchEscape}
+          onPress={() =>
+            router.push({ pathname: '/search', params: { returnTo: '/shop/scan' } })
+          }
+        >
           <Text style={styles.searchEscapeText}>No barcode? Search manually</Text>
           <ArrowRight size={11} color="rgba(244,237,224,0.65)" weight="regular" />
         </Pressable>
