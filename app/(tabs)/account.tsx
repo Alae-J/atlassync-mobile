@@ -428,9 +428,6 @@ function DeferredRow({
       <View style={[styles.rowIcon, styles.deferredIcon]}>{icon}</View>
       <Text style={[styles.rowLabel, styles.deferredText]}>{label}</Text>
       <Text style={[styles.rowValue, styles.deferredText]}>{value}</Text>
-      <View style={styles.soonBadge}>
-        <Text style={styles.soonBadgeText}>SOON</Text>
-      </View>
     </View>
   );
 }
@@ -725,23 +722,12 @@ const styles = StyleSheet.create({
   rowValue: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted },
 
   // Deferred row — Language sits in this state until i18n lands.
-  deferredRow: { opacity: 0.78, borderStyle: 'dashed', borderBottomColor: Colors.lineSoft },
+  // Keeps the same solid 1px hairline as the rest of the rows (RN's
+  // `borderStyle: dashed` on a 1px bottom-only border doesn't render on
+  // iOS), just muted via opacity + colour swaps.
+  deferredRow: { opacity: 0.78 },
   deferredIcon: { backgroundColor: 'rgba(21,20,15,0.05)' },
   deferredText: { color: Colors.muted },
-  soonBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.line,
-  },
-  soonBadgeText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 9.5,
-    letterSpacing: 1,
-    color: Colors.muted,
-  },
 
   emailStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
