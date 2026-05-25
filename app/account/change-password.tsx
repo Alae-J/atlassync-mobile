@@ -23,6 +23,9 @@ import {
   NutriscoreColors,
 } from '../../src/constants/theme';
 import { meApi } from '../../src/api';
+import { backTo } from '../../src/lib/nav';
+
+const backToAccount = backTo('/(tabs)/account');
 
 type Field = 'current' | 'next' | 'confirm';
 
@@ -53,7 +56,7 @@ export default function ChangePasswordScreen() {
     setSubmitting(true);
     try {
       await meApi.changePassword(current, next);
-      router.back();
+      backToAccount();
     } catch (e: unknown) {
       setError(extractMessage(e, 'Could not update. Try again in a moment.'));
     } finally {
@@ -74,7 +77,7 @@ export default function ChangePasswordScreen() {
       />
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={backToAccount}
         style={[styles.backBtn, { top: insets.top + 12 }]}
         hitSlop={10}
       >

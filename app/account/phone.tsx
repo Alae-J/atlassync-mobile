@@ -16,6 +16,9 @@ import { ArrowLeft, ArrowRight, Phone } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { meApi } from '../../src/api';
+import { backTo } from '../../src/lib/nav';
+
+const backToAccount = backTo('/(tabs)/account');
 
 const CODE_LENGTH = 6;
 const DEFAULT_DIAL_CODE = '+20'; // Egypt — adjust later when the picker lands
@@ -81,7 +84,7 @@ export default function PhoneScreen() {
     try {
       const res = await meApi.verifyPhone(fullPhone, value);
       await applyAuthResponse(res);
-      router.back();
+      backToAccount();
     } catch (e: unknown) {
       setError(extractMessage(e, 'That code didn’t work. Try again.'));
       setCode('');
@@ -213,7 +216,7 @@ export default function PhoneScreen() {
       <Backdrop />
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={backToAccount}
         style={[styles.backBtn, { top: insets.top + 12 }]}
         hitSlop={10}
       >

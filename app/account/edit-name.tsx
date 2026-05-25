@@ -16,6 +16,9 @@ import { ArrowLeft, ArrowRight, UserCircle } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { meApi } from '../../src/api';
+import { backTo } from '../../src/lib/nav';
+
+const backToAccount = backTo('/(tabs)/account');
 
 export default function EditNameScreen() {
   const insets = useSafeAreaInsets();
@@ -29,7 +32,10 @@ export default function EditNameScreen() {
 
   const trimmed = value.trim();
   const changed = trimmed.length > 0 && trimmed !== previous;
-  const valid = /^[a-zA-Z0-9_.-]{3,30}$/.test(trimmed);
+  // Names get spaces, apostrophes, hyphens, accented letters. Permissive
+  // length window — we're not validating slug-style handles, we're saving
+  // how the receipt and gate-greeting read.
+  const valid = trimmed.length >= 2 && trimmed.length <= 60;
   const canSave = changed && valid && !submitting;
 
   const submit = async () => {
@@ -39,7 +45,7 @@ export default function EditNameScreen() {
     try {
       const res = await meApi.updateUsername(trimmed);
       await applyAuthResponse(res);
-      router.back();
+      backToAccount();
     } catch (e: unknown) {
       setError(extractMessage(e, 'Could not save. Try again in a moment.'));
     } finally {
@@ -60,7 +66,7 @@ export default function EditNameScreen() {
       />
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={backToAccount}
         style={[styles.backBtn, { top: insets.top + 12 }]}
         hitSlop={10}
       >
