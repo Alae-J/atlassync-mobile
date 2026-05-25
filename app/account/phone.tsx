@@ -17,11 +17,12 @@ import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme'
 import { useAuth } from '../../src/context/AuthContext';
 import { meApi } from '../../src/api';
 import { backTo } from '../../src/lib/nav';
+import { CountryPickerSheet } from '../../src/components/CountryPickerSheet';
+import { DEFAULT_COUNTRY, type Country } from '../../src/data/countries';
 
 const backToAccount = backTo('/(tabs)/account');
 
 const CODE_LENGTH = 6;
-const DEFAULT_DIAL_CODE = '+20'; // Egypt — adjust later when the picker lands
 
 export default function PhoneScreen() {
   const insets = useSafeAreaInsets();
@@ -31,9 +32,11 @@ export default function PhoneScreen() {
   const [step, setStep] = useState<'number' | 'verify'>('number');
 
   // Step A — enter number
-  const [dialCode] = useState(DEFAULT_DIAL_CODE);
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [local, setLocal] = useState('');
   const [sending, setSending] = useState(false);
+  const dialCode = country.dialCode;
 
   // Step B — verify code
   const [code, setCode] = useState('');
@@ -235,14 +238,20 @@ export default function PhoneScreen() {
         <Text style={styles.helper}>We&apos;ll text you a six-digit code to confirm.</Text>
 
         <View style={styles.phoneRow}>
-          <View style={styles.dialChip}>
+          <Pressable
+            style={styles.dialChip}
+            onPress={() => setPickerOpen(true)}
+            hitSlop={6}
+          >
+            <Text style={styles.flag}>{country.flag}</Text>
             <Text style={styles.dialText}>{dialCode}</Text>
-          </View>
+            <Text style={styles.dialCaret}>▾</Text>
+          </Pressable>
           <View style={styles.numberField}>
             <TextInput
               value={local}
               onChangeText={(v) => setLocal(v.replace(/\D/g, ''))}
-              placeholder="100 123 4567"
+              placeholder="6 12 34 56 78"
               placeholderTextColor={Colors.muted}
               keyboardType="phone-pad"
               style={styles.numberInput}
@@ -281,6 +290,13 @@ export default function PhoneScreen() {
           )}
         </Pressable>
       </View>
+
+      <CountryPickerSheet
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        selectedCode={country.code}
+        onPick={setCountry}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -341,20 +357,28 @@ const styles = StyleSheet.create({
 
   phoneRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
   dialChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     backgroundColor: Colors.paper,
     borderWidth: 1,
     borderColor: Colors.line,
     borderRadius: Radius.md,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
     ...Shadows.card,
   },
+  flag: { fontSize: 20, includeFontPadding: false },
   dialText: {
     fontFamily: Fonts.sansSemibold,
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.ink,
+    letterSpacing: 0.2,
+  },
+  dialCaret: {
+    fontSize: 11,
+    color: Colors.muted,
+    marginLeft: -2,
   },
   numberField: {
     flex: 1,
