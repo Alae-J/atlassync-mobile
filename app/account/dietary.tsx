@@ -16,7 +16,7 @@ import { meApi } from '../../src/api';
 import { backTo } from '../../src/lib/nav';
 import { DIETARY_TAGS } from '../../src/data/dietary';
 
-const backToAccount = backTo('/(tabs)/account');
+const backToAccount = backTo('/(tabs)/account?tab=preferences');
 
 export default function DietaryPreferenceScreen() {
   const insets = useSafeAreaInsets();

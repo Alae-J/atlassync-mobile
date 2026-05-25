@@ -26,7 +26,7 @@ import { meApi } from '../../src/api';
 import { backTo } from '../../src/lib/nav';
 import { NOTIFICATION_CATEGORIES, withDefaults } from '../../src/data/notifications';
 
-const backToAccount = backTo('/(tabs)/account');
+const backToAccount = backTo('/(tabs)/account?tab=preferences');
 
 // Icon per category — looked up by category key in render. Phosphor names
 // chosen for the design's intent (notebook for saved-list, trend-up for

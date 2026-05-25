@@ -20,7 +20,7 @@ import { backTo } from '../../src/lib/nav';
 import { CountryPickerSheet } from '../../src/components/CountryPickerSheet';
 import { DEFAULT_COUNTRY, type Country } from '../../src/data/countries';
 
-const backToAccount = backTo('/(tabs)/account');
+const backToAccount = backTo('/(tabs)/account?tab=profile');
 
 const CODE_LENGTH = 6;
 

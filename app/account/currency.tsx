@@ -9,7 +9,7 @@ import { meApi } from '../../src/api';
 import { backTo } from '../../src/lib/nav';
 import { currencies } from '../../src/data/currencies';
 
-const backToAccount = backTo('/(tabs)/account');
+const backToAccount = backTo('/(tabs)/account?tab=preferences');
 
 export default function CurrencyPreferenceScreen() {
   const insets = useSafeAreaInsets();

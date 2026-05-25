@@ -9,7 +9,7 @@ import { meApi } from '../../src/api';
 import { backTo } from '../../src/lib/nav';
 import { stores } from '../../src/data/stores';
 
-const backToAccount = backTo('/(tabs)/account');
+const backToAccount = backTo('/(tabs)/account?tab=preferences');
 
 export default function StorePreferenceScreen() {
   const insets = useSafeAreaInsets();

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import {
@@ -52,11 +52,27 @@ const TABS: { key: AccountTab; label: string }[] = [
   { key: 'help', label: 'Help' },
 ];
 
+function isAccountTab(value: unknown): value is AccountTab {
+  return value === 'profile' || value === 'payments' || value === 'preferences' || value === 'help';
+}
+
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { user, patchUser } = useAuth();
-  const [active, setActive] = useState<AccountTab>('profile');
+  // Initial tab is sourced from the URL (?tab=preferences) so back-nav from
+  // a sub-screen (e.g. /account/dietary → /(tabs)/account?tab=preferences)
+  // lands the user on the tab they came from instead of resetting to profile.
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [active, setActive] = useState<AccountTab>(
+    isAccountTab(tabParam) ? tabParam : 'profile',
+  );
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const switchTab = useCallback((next: AccountTab) => {
+    setActive(next);
+    // Keep the URL in sync so a future back-nav restores this same tab.
+    router.setParams({ tab: next });
+  }, []);
 
   const [first, last] = splitName(user);
   const initial = (first[0] ?? '?').toUpperCase();
@@ -117,7 +133,7 @@ export default function AccountScreen() {
             return (
               <Pressable
                 key={tab.key}
-                onPress={() => setActive(tab.key)}
+                onPress={() => switchTab(tab.key)}
                 style={styles.tabBtn}
               >
                 <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>

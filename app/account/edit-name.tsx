@@ -18,7 +18,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { meApi } from '../../src/api';
 import { backTo } from '../../src/lib/nav';
 
-const backToAccount = backTo('/(tabs)/account');
+const backToAccount = backTo('/(tabs)/account?tab=profile');
 
 export default function EditNameScreen() {
   const insets = useSafeAreaInsets();
