@@ -26,6 +26,7 @@ import { productsApi } from '../../src/api';
 import { toDisplayProduct, type DisplayProduct } from '../../src/lib/productDisplay';
 import { highlightIngredients, matchedAllergens } from '../../src/lib/allergens';
 import { useSession } from '../../src/context/SessionContext';
+import { useAuth } from '../../src/context/AuthContext';
 import {
   AislePill,
   DietChip,
@@ -35,13 +36,17 @@ import {
   StockChip,
 } from '../../src/components/product';
 
-const USER_DIETARY = ['Halal', 'No pork', 'Low sugar', 'No alcohol'];
-const USER_ALLERGENS = ['Milk', 'Shellfish'];
+// userDietary / userAllergens now read from user.preferences
+// (Account → Preferences → Dietary / Allergens). Empty arrays mean
+// no banner, no dietary chip match — same calm fallback.
 
 export default function ProductDetailScreen() {
   const insets = useSafeAreaInsets();
   const { barcode } = useLocalSearchParams<{ barcode: string }>();
   const { isActive, scanItem } = useSession();
+  const { user } = useAuth();
+  const userDietary = user?.preferences.dietaryPrefs ?? [];
+  const userAllergens = user?.preferences.allergens ?? [];
 
   const [product, setProduct] = useState<DisplayProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,14 +78,14 @@ export default function ProductDetailScreen() {
 
   const ingredientSegments = useMemo(() => {
     if (!product) return [];
-    const flagged = matchedAllergens(product.allergens, USER_ALLERGENS);
+    const flagged = matchedAllergens(product.allergens, userAllergens);
     return highlightIngredients(product.ingredients, flagged);
-  }, [product]);
+  }, [product, userAllergens]);
 
   const matched = useMemo(() => {
     if (!product) return [];
-    return matchedAllergens(product.allergens, USER_ALLERGENS);
-  }, [product]);
+    return matchedAllergens(product.allergens, userAllergens);
+  }, [product, userAllergens]);
 
   const handleAddToCart = useCallback(async () => {
     if (!product || adding) return;
@@ -122,8 +127,8 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const matchedDietary = product.dietary.filter((d) => USER_DIETARY.includes(d));
-  const otherDietary = product.dietary.filter((d) => !USER_DIETARY.includes(d));
+  const matchedDietary = product.dietary.filter((d) => userDietary.includes(d));
+  const otherDietary = product.dietary.filter((d) => !userDietary.includes(d));
   const visibleDietary = [...matchedDietary, ...otherDietary].slice(0, 3);
 
   return (

@@ -15,6 +15,13 @@ interface RefreshResponse {
   role: string;
   emailVerified: boolean;
   phone: string | null;
+  preferences: {
+    defaultStoreId: number | null;
+    currencyCode: string;
+    dietaryPrefs: string[];
+    allergens: string[];
+    notificationPrefs: Record<string, boolean>;
+  };
 }
 
 let onUnauthenticated: (() => void) | null = null;
@@ -59,6 +66,7 @@ async function refreshAccessToken(): Promise<string | null> {
         phone: data.phone,
         // avatarUri lives purely on-device for now; preserve across refresh.
         avatarUri: existingUser?.avatarUri ?? null,
+        preferences: data.preferences,
       });
       return data.accessToken;
     } catch {

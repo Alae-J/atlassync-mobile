@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { Colors, Fonts } from '../../src/constants/theme';
 import { productsApi } from '../../src/api';
 import { useSession } from '../../src/context/SessionContext';
+import { useAuth } from '../../src/context/AuthContext';
 import { toDisplayProduct } from '../../src/lib/productDisplay';
 import {
   ScanPeekCard,
@@ -29,8 +30,9 @@ import {
 const SIMULATE_BARCODES = ['1234567890', '2345678901', '3456789012'];
 const UNKNOWN_FALLBACK = '5901234123457';
 
-const USER_DIETARY = ['Halal', 'No pork', 'Low sugar', 'No alcohol'];
-const USER_ALLERGENS = ['Milk', 'Shellfish'];
+// User dietary + allergen preferences come from Account → Preferences;
+// we read them from useAuth inside the component and pass them into
+// determinePeek per scan.
 
 // Two guardrails against the live camera firing the same scan dozens of times:
 // (1) the same barcode within this window is ignored, (2) any new scan is
@@ -44,6 +46,9 @@ const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] as co
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const { sessionId, cart, refreshCart, scanItem, removeItem } = useSession();
+  const { user } = useAuth();
+  const userAllergens = user?.preferences.allergens ?? [];
+  const userDietary = user?.preferences.dietaryPrefs ?? [];
   const [permission, requestPermission] = useCameraPermissions();
 
   const [scanning, setScanning] = useState(false);
@@ -96,7 +101,7 @@ export default function ScanScreen() {
         try {
           const raw = await productsApi.byBarcode(barcode);
           const product = toDisplayProduct(raw);
-          setPeek(determinePeek(product, USER_ALLERGENS, USER_DIETARY));
+          setPeek(determinePeek(product, userAllergens, userDietary));
         } catch (enrichError) {
           // Enrichment failed -- still confirm the add but keep the peek silent.
           console.warn('[scan] product enrichment failed for', barcode, enrichError);
@@ -121,7 +126,7 @@ export default function ScanScreen() {
         setScanning(false);
       }
     },
-    [scanning, sessionId, scanItem, peek.kind],
+    [scanning, sessionId, scanItem, peek.kind, userAllergens, userDietary],
   );
 
   // Dev-mode fallback: simulator / web have no camera, so a tap on the frame

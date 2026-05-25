@@ -1,4 +1,12 @@
 /** Auth */
+export interface UserPreferences {
+  defaultStoreId: number | null;
+  currencyCode: string;
+  dietaryPrefs: string[];
+  allergens: string[];
+  notificationPrefs: Record<string, boolean>;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
@@ -8,6 +16,7 @@ export interface AuthResponse {
   role: string;
   emailVerified: boolean;
   phone: string | null;
+  preferences: UserPreferences;
 }
 
 export interface User {
@@ -17,6 +26,7 @@ export interface User {
   role: string;
   emailVerified: boolean;
   phone: string | null;
+  preferences: UserPreferences;
 }
 
 /** Products */

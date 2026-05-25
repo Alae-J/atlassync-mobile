@@ -27,6 +27,7 @@ import { aisles } from '../src/data/aisles';
 import { recentSearches } from '../src/lib/recentSearches';
 import { toDisplayProduct, type DisplayProduct } from '../src/lib/productDisplay';
 import { useSession } from '../src/context/SessionContext';
+import { useAuth } from '../src/context/AuthContext';
 import {
   AislePill,
   DietChip,
@@ -40,12 +41,14 @@ type Mode = 'cold' | 'typing' | 'results' | 'empty';
 
 const DEBOUNCE_MS = 300;
 
-const USER_DIETARY = ['Halal', 'No pork', 'Low sugar', 'No alcohol'];
+// USER_DIETARY now read from user.preferences (Account → Preferences → Dietary)
+// — no hardcoded fallback; an empty array means no dietary chips will surface.
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
   const { isActive, scanItem } = useSession();
+  const { user } = useAuth();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
 
   // `router.back()` would normally pop the previous route, but search is at
@@ -242,6 +245,7 @@ export default function SearchScreen() {
             results={results}
             activeFilterLabel={activeFilterLabel}
             addedId={addedId}
+            userDietary={user?.preferences.dietaryPrefs ?? []}
             onRowTap={handleRowTap}
             onPlus={handlePlus}
           />
@@ -354,12 +358,14 @@ function ResultsState({
   results,
   activeFilterLabel,
   addedId,
+  userDietary,
   onRowTap,
   onPlus,
 }: {
   results: DisplayProduct[];
   activeFilterLabel: string | null;
   addedId: number | null;
+  userDietary: string[];
   onRowTap: (p: DisplayProduct) => void;
   onPlus: (p: DisplayProduct) => void;
 }) {
@@ -382,6 +388,7 @@ function ResultsState({
           key={product.id}
           product={product}
           added={addedId === product.id}
+          userDietary={userDietary}
           onRowTap={onRowTap}
           onPlus={onPlus}
         />
@@ -393,15 +400,17 @@ function ResultsState({
 function ResultRow({
   product,
   added,
+  userDietary,
   onRowTap,
   onPlus,
 }: {
   product: DisplayProduct;
   added: boolean;
+  userDietary: string[];
   onRowTap: (p: DisplayProduct) => void;
   onPlus: (p: DisplayProduct) => void;
 }) {
-  const dietHit = product.dietary.find((d) => USER_DIETARY.includes(d));
+  const dietHit = product.dietary.find((d) => userDietary.includes(d));
   return (
     <View style={styles.resultRow}>
       <Pressable

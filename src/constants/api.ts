@@ -32,6 +32,7 @@ export const Endpoints = {
       password: '/api/auth/me/password',
       phoneRequest: '/api/auth/me/phone/request',
       phoneVerify: '/api/auth/me/phone/verify',
+      preferences: '/api/auth/me/preferences',
     },
   },
   products: {

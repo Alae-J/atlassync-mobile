@@ -39,6 +39,9 @@ import {
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
 import { displayName, splitName } from '../../src/lib/userDisplay';
+import { storeLabel } from '../../src/data/stores';
+import { currencyLabel } from '../../src/data/currencies';
+import { countOn as countNotifsOn } from '../../src/data/notifications';
 
 type AccountTab = 'profile' | 'payments' | 'preferences' | 'help';
 
@@ -339,22 +342,80 @@ function PaymentsTab() {
 }
 
 function PreferencesTab() {
+  const { user } = useAuth();
+  const prefs = user?.preferences;
+  const notifOn = countNotifsOn(prefs?.notificationPrefs ?? {});
+  const dietaryCount = prefs?.dietaryPrefs.length ?? 0;
+  const allergenCount = prefs?.allergens.length ?? 0;
+
   return (
     <>
       <SectionHeader eyebrow="PREFERENCES" title="Set the" italicWord="defaults" />
       <Card>
-        <Row icon={<MapPin size={16} color={Colors.amber} weight="regular" />} label="Default store" value="Aldi · Mansoura" />
-        <Row icon={<Bell size={16} color={Colors.amber} weight="regular" />} label="Notifications" value="Deals, lists" />
-        <Row icon={<Globe size={16} color={Colors.amber} weight="regular" />} label="Language" value="English" />
-        <Row icon={<CurrencyDollar size={16} color={Colors.amber} weight="regular" />} label="Currency" value="USD ($)" last />
+        <Row
+          icon={<MapPin size={16} color={Colors.amber} weight="regular" />}
+          label="Default store"
+          value={storeLabel(prefs?.defaultStoreId)}
+          onPress={() => router.push('/account/store')}
+        />
+        <Row
+          icon={<CurrencyDollar size={16} color={Colors.amber} weight="regular" />}
+          label="Currency"
+          value={currencyLabel(prefs?.currencyCode)}
+          onPress={() => router.push('/account/currency')}
+        />
+        <DeferredRow
+          icon={<Globe size={16} color={Colors.muted} weight="regular" />}
+          label="Language"
+          value="Coming soon"
+        />
+        <Row
+          icon={<Bell size={16} color={Colors.amber} weight="regular" />}
+          label="Notifications"
+          value={`${notifOn} categor${notifOn === 1 ? 'y' : 'ies'} on`}
+          onPress={() => router.push('/account/notifications')}
+          last
+        />
       </Card>
 
       <SectionHeader eyebrow="DIET" title="Restrictions &" italicWord="allergens" />
       <Card>
-        <Row icon={<Prohibit size={16} color={Colors.amber} weight="regular" />} label="Dietary restrictions" value="4 active" />
-        <Row icon={<Warning size={16} color={Colors.amber} weight="regular" />} label="Allergens" value="1" last />
+        <Row
+          icon={<Prohibit size={16} color={Colors.amber} weight="regular" />}
+          label="Dietary restrictions"
+          value={dietaryCount === 0 ? 'None' : `${dietaryCount} active`}
+          onPress={() => router.push('/account/dietary')}
+        />
+        <Row
+          icon={<Warning size={16} color={Colors.amber} weight="regular" />}
+          label="Allergens"
+          value={allergenCount === 0 ? 'None' : `${allergenCount} flagged`}
+          onPress={() => router.push('/account/allergens')}
+          last
+        />
       </Card>
     </>
+  );
+}
+
+function DeferredRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={[styles.row, styles.rowDivider, styles.deferredRow]}>
+      <View style={[styles.rowIcon, styles.deferredIcon]}>{icon}</View>
+      <Text style={[styles.rowLabel, styles.deferredText]}>{label}</Text>
+      <Text style={[styles.rowValue, styles.deferredText]}>{value}</Text>
+      <View style={styles.soonBadge}>
+        <Text style={styles.soonBadgeText}>SOON</Text>
+      </View>
+    </View>
   );
 }
 
@@ -646,6 +707,25 @@ const styles = StyleSheet.create({
   },
   rowLabel: { flex: 1, fontFamily: Fonts.sans, fontSize: 14.5, color: Colors.ink },
   rowValue: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted },
+
+  // Deferred row — Language sits in this state until i18n lands.
+  deferredRow: { opacity: 0.78, borderStyle: 'dashed', borderBottomColor: Colors.lineSoft },
+  deferredIcon: { backgroundColor: 'rgba(21,20,15,0.05)' },
+  deferredText: { color: Colors.muted },
+  soonBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.line,
+  },
+  soonBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9.5,
+    letterSpacing: 1,
+    color: Colors.muted,
+  },
 
   emailStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },

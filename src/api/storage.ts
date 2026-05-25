@@ -13,7 +13,26 @@ export interface StoredUser {
   phone: string | null;
   /** Local file URI from expo-image-picker. Not yet persisted server-side. */
   avatarUri: string | null;
+  preferences: UserPreferences;
 }
+
+export interface UserPreferences {
+  defaultStoreId: number | null;
+  currencyCode: string;
+  dietaryPrefs: string[];
+  allergens: string[];
+  notificationPrefs: Record<string, boolean>;
+}
+
+/** Default empty preferences — used as a fallback when stored data is older
+ *  than the current schema (pre-preferences logins). */
+export const EMPTY_PREFERENCES: UserPreferences = {
+  defaultStoreId: null,
+  currencyCode: 'USD',
+  dietaryPrefs: [],
+  allergens: [],
+  notificationPrefs: {},
+};
 
 export const tokenStorage = {
   async getAccess(): Promise<string | null> {
@@ -24,7 +43,11 @@ export const tokenStorage = {
   },
   async getUser(): Promise<StoredUser | null> {
     const raw = await SecureStore.getItemAsync(USER_KEY);
-    return raw ? (JSON.parse(raw) as StoredUser) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredUser;
+    // Forward-compat for sessions stored before V6 (preferences may be missing).
+    if (!parsed.preferences) parsed.preferences = { ...EMPTY_PREFERENCES };
+    return parsed;
   },
   async set(access: string, refresh: string, user: StoredUser): Promise<void> {
     await Promise.all([

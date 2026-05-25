@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       emailVerified: response.emailVerified,
       phone: response.phone,
       avatarUri: previous?.avatarUri ?? null,
+      preferences: response.preferences,
     };
     await tokenStorage.set(response.accessToken, response.refreshToken, next);
     setUser(next);

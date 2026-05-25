@@ -1,6 +1,9 @@
 import { api } from './client';
 import { Endpoints } from '../constants/api';
-import type { AuthResponse } from '../types';
+import type { AuthResponse, UserPreferences } from '../types';
+
+/** Partial-update patch sent to PATCH /api/auth/me/preferences. */
+export type PreferencesPatch = Partial<UserPreferences>;
 
 export interface PhoneCodeSent {
   resendCooldownSeconds: number;
@@ -31,6 +34,11 @@ export const meApi = {
   verifyPhone(phone: string, code: string): Promise<AuthResponse> {
     return api
       .post<AuthResponse>(Endpoints.auth.me.phoneVerify, { phone, code })
+      .then((r) => r.data);
+  },
+  updatePreferences(patch: PreferencesPatch): Promise<AuthResponse> {
+    return api
+      .patch<AuthResponse>(Endpoints.auth.me.preferences, patch)
       .then((r) => r.data);
   },
 };
