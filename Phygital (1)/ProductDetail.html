@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Product Detail</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="screens/data.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens/product.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (props) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={false} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <ProductDetail {...props} />
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="pd-cta-states"
+        title="Product Detail — CTA states"
+        subtitle="Same screen, four contexts. The bottom CTA bar carries the state — everything above is calm and consistent."
+      >
+        <DCArtboard
+          id="active"
+          label="1. Active session — Add to cart"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ productId: 'chicken', cta: 'session' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="added"
+          label="2. After tap — Added confirmation"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ productId: 'chicken', cta: 'session', added: true })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="no-session"
+          label="3. No session — Add to a list"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ productId: 'salmon', cta: 'list' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="list-sheet"
+          label="4. List-picker half sheet"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ productId: 'salmon', cta: 'list', sheetOpen: true })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="oos"
+          label="5. Out of stock — Notify when back"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ productId: 'cheese', cta: 'oos' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="allergen"
+          label="6. Allergen match — calm banner"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ productId: 'yogurt', cta: 'session' })}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="pd-rationale"
+        title="Reasoning"
+        subtitle="Notes & decisions."
+      >
+        <DCArtboard id="why-pd" label="Notes" width={420} height={cardH} style={{ background: '#fffdf8' }}>
+          <div style={{
+            padding: 28, height: '100%', boxSizing: 'border-box',
+            fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+            color: '#1c1a17', overflow: 'auto',
+          }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+              The <span style={{ fontStyle: 'italic', color: '#c87a3a' }}>page.</span>
+            </div>
+            <p style={{ marginTop: 0 }}>
+              One scroll, no inner tabs. The hero, name, and price do the introductions;
+              everything below answers questions a careful shopper asks: how healthy,
+              what's in it, anything I should know.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>HERO TREATMENT</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The product image uses the same cream-gradient stand-in pattern
+              we use everywhere — until real photography exists, this stays
+              honest. A nutriscore corner badge anchors the visual without
+              fighting the hero.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>PRICE SCALE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Price is set in Instrument Serif at 38px — the same scale as the
+              "2,840" points number on the Account loyalty card. The product's
+              real weight on the page is the price; we honor that.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>QUICK-FACT PILLS</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Aisle, stock, and the user's matched dietary tags get a single row.
+              Matched tags are filled (ink); non-matched are outlined. We show
+              at most 3 — the rest hide rather than wrap.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>ALLERGENS</div>
+            <p style={{ margin: '6px 0 0' }}>
+              A soft-red wash banner above ingredients, plus highlighted matches
+              inline. No icon-spam, no shouting. The same color appears on the
+              Account screen — same language.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>STICKY CTA</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Same bar, three personalities:
+            </p>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li><strong>Active session</strong> — ink button, "Add to cart" + price. Flips green with check on tap.</li>
+              <li><strong>No session</strong> — ink button, "Add to a list", opens the list-picker sheet.</li>
+              <li><strong>Out of stock</strong> — disabled primary, outlined "Notify me" alongside.</li>
+            </ul>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TO DECIDE</div>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li>Quantity stepper on this screen, or only after Add? Currently after — keeps the page calm.</li>
+              <li>"You bought this 4 times this year" footnote — useful or creepy?</li>
+              <li>Worth surfacing related items (substitutes) below About, or save for the substitution sheet?</li>
+            </ol>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

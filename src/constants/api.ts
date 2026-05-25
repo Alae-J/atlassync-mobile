@@ -27,6 +27,12 @@ export const Endpoints = {
     logout: '/api/auth/logout',
     sendEmailVerification: '/api/auth/email/send-verification',
     verifyEmail: '/api/auth/email/verify',
+    me: {
+      username: '/api/auth/me/username',
+      password: '/api/auth/me/password',
+      phoneRequest: '/api/auth/me/phone/request',
+      phoneVerify: '/api/auth/me/phone/verify',
+    },
   },
   products: {
     byBarcode: (barcode: string) => `/api/products/${barcode}`,

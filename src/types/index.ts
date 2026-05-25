@@ -7,6 +7,7 @@ export interface AuthResponse {
   username: string | null;
   role: string;
   emailVerified: boolean;
+  phone: string | null;
 }
 
 export interface User {
@@ -15,6 +16,7 @@ export interface User {
   username: string | null;
   role: string;
   emailVerified: boolean;
+  phone: string | null;
 }
 
 /** Products */

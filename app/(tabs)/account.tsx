@@ -1,8 +1,19 @@
-import { useState, type ReactNode } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import {
+  ActionSheetIOS,
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   CaretRight,
@@ -40,25 +51,51 @@ const TABS: { key: AccountTab; label: string }[] = [
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, patchUser } = useAuth();
   const [active, setActive] = useState<AccountTab>('profile');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [first, last] = splitName(user);
   const initial = (first[0] ?? '?').toUpperCase();
   const subtitle = user?.email ?? '';
+  const avatarUri = user?.avatarUri ?? null;
+
+  const handleAvatarTap = useCallback(() => {
+    if (uploadingAvatar) return;
+    openPhotoMenu({
+      hasPhoto: !!avatarUri,
+      onTakePhoto: () => pickPhoto('camera', setUploadingAvatar, patchUser),
+      onChoosePhoto: () => pickPhoto('library', setUploadingAvatar, patchUser),
+      onRemovePhoto: () => void patchUser({ avatarUri: null }),
+    });
+  }, [avatarUri, uploadingAvatar, patchUser]);
 
   return (
     <View style={styles.root}>
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 12 }]}>
         <View style={styles.avatarRow}>
-          <LinearGradient
-            colors={[Colors.amber, Colors.amberDeep]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatar}
+          <Pressable
+            onPress={handleAvatarTap}
+            disabled={uploadingAvatar}
+            style={styles.avatarPress}
           >
-            <Text style={styles.avatarLetter}>{initial}</Text>
-          </LinearGradient>
+            {avatarUri ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={[styles.avatar, uploadingAvatar && styles.avatarBusy]}
+              />
+            ) : (
+              <LinearGradient
+                colors={[Colors.amber, Colors.amberDeep]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.avatar, uploadingAvatar && styles.avatarBusy]}
+              >
+                <Text style={styles.avatarLetter}>{initial}</Text>
+              </LinearGradient>
+            )}
+            {uploadingAvatar && <View style={styles.avatarRing} />}
+          </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.avatarName}>
               {first}
@@ -109,11 +146,23 @@ export default function AccountScreen() {
 }
 
 function ProfileTab() {
-  const { user, logout } = useAuth();
+  const { user, logout, patchUser } = useAuth();
   const [first, last] = splitName(user);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const hasPhoto = !!user?.avatarUri;
+
   const handleSignOut = async () => {
     await logout();
     router.replace('/auth/login');
+  };
+  const handlePhotoTap = () => {
+    if (uploadingPhoto) return;
+    openPhotoMenu({
+      hasPhoto,
+      onTakePhoto: () => pickPhoto('camera', setUploadingPhoto, patchUser),
+      onChoosePhoto: () => pickPhoto('library', setUploadingPhoto, patchUser),
+      onRemovePhoto: () => void patchUser({ avatarUri: null }),
+    });
   };
   return (
     <>
@@ -165,11 +214,32 @@ function ProfileTab() {
 
       <SectionHeader eyebrow="IDENTITY" title="Personal" italicWord="details" />
       <Card>
-        <Row icon={<UserIcon size={16} color={Colors.amber} weight="regular" />} label="Full name" value={displayName(user)} />
-        <Row icon={<Phone size={16} color={Colors.amber} weight="regular" />} label="Phone number" value="Not set" />
+        <Row
+          icon={<UserIcon size={16} color={Colors.amber} weight="regular" />}
+          label="Full name"
+          value={displayName(user)}
+          onPress={() => router.push('/account/edit-name')}
+        />
+        <Row
+          icon={<Phone size={16} color={Colors.amber} weight="regular" />}
+          label="Phone number"
+          value={user?.phone ?? 'Not set'}
+          onPress={() => router.push('/account/phone')}
+        />
         <EmailRow user={user} />
-        <Row icon={<ShieldCheck size={16} color={Colors.amber} weight="regular" />} label="Password" value="Change" />
-        <Row icon={<ImageIcon size={16} color={Colors.amber} weight="regular" />} label="Profile photo" value="Upload" last />
+        <Row
+          icon={<ShieldCheck size={16} color={Colors.amber} weight="regular" />}
+          label="Password"
+          value="Change"
+          onPress={() => router.push('/account/change-password')}
+        />
+        <Row
+          icon={<ImageIcon size={16} color={Colors.amber} weight="regular" />}
+          label="Profile photo"
+          value={uploadingPhoto ? 'Uploading…' : hasPhoto ? 'Edit' : 'Upload'}
+          onPress={handlePhotoTap}
+          last
+        />
       </Card>
 
       <SectionHeader eyebrow="THIS MONTH" title="Spent" italicWord="$248.40" />
@@ -328,11 +398,12 @@ interface RowProps {
   label: string;
   value?: string;
   last?: boolean;
+  onPress?: () => void;
 }
 
-function Row({ icon, label, value, last }: RowProps) {
+function Row({ icon, label, value, last, onPress }: RowProps) {
   return (
-    <Pressable style={[styles.row, !last && styles.rowDivider]}>
+    <Pressable style={[styles.row, !last && styles.rowDivider]} onPress={onPress}>
       <View style={styles.rowIcon}>{icon}</View>
       <Text style={styles.rowLabel}>{label}</Text>
       {value && <Text style={styles.rowValue}>{value}</Text>}
@@ -365,6 +436,96 @@ function EmailRow({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
   );
 }
 
+// ── Photo picker plumbing ────────────────────────────────────────────
+// expo-image-picker handles the native bits; we just choose between the
+// camera and library, get back a URI, and patch it onto the local user
+// record. Backend upload is a follow-up — the URI lives on-device only.
+
+type PhotoSource = 'camera' | 'library';
+
+async function pickPhoto(
+  source: PhotoSource,
+  setBusy: (b: boolean) => void,
+  patchUser: (changes: { avatarUri: string | null }) => Promise<void>,
+) {
+  try {
+    setBusy(true);
+    const perm =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        source === 'camera' ? 'Camera access needed' : 'Photo access needed',
+        'Enable access in Settings to pick a profile photo.',
+      );
+      return;
+    }
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+          });
+    if (result.canceled) return;
+    const uri = result.assets?.[0]?.uri;
+    if (!uri) return;
+    await patchUser({ avatarUri: uri });
+  } finally {
+    setBusy(false);
+  }
+}
+
+function openPhotoMenu({
+  hasPhoto,
+  onTakePhoto,
+  onChoosePhoto,
+  onRemovePhoto,
+}: {
+  hasPhoto: boolean;
+  onTakePhoto: () => void;
+  onChoosePhoto: () => void;
+  onRemovePhoto: () => void;
+}) {
+  if (Platform.OS === 'ios') {
+    const options = hasPhoto
+      ? ['Take photo', 'Choose from library', 'Remove photo', 'Cancel']
+      : ['Take photo', 'Choose from library', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options,
+        cancelButtonIndex: options.length - 1,
+        destructiveButtonIndex: hasPhoto ? 2 : undefined,
+      },
+      (idx) => {
+        if (idx === 0) onTakePhoto();
+        else if (idx === 1) onChoosePhoto();
+        else if (idx === 2 && hasPhoto) onRemovePhoto();
+      },
+    );
+    return;
+  }
+
+  // Android / web fallback — Alert with up to three buttons.
+  const buttons: { text: string; onPress?: () => void; style?: 'cancel' | 'destructive' }[] = [
+    { text: 'Take photo', onPress: onTakePhoto },
+    { text: 'Choose from library', onPress: onChoosePhoto },
+  ];
+  if (hasPhoto) {
+    buttons.push({ text: 'Remove photo', onPress: onRemovePhoto, style: 'destructive' });
+  }
+  buttons.push({ text: 'Cancel', style: 'cancel' });
+  Alert.alert('Profile photo', undefined, buttons);
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
 
@@ -383,6 +544,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
+  avatarPress: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   avatar: {
     width: 48,
     height: 48,
@@ -390,6 +552,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.amberCta,
+  },
+  avatarBusy: { opacity: 0.6 },
+  avatarRing: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: Colors.amber,
+    borderTopColor: 'transparent',
   },
   avatarLetter: {
     fontFamily: Fonts.serif,

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Personal Details</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  @keyframes pdspin { to { transform: rotate(360deg); } }
+  @keyframes pdshimmer { from { background-position: 0% 0; } to { background-position: -200% 0; } }
+  @keyframes pdcaret { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens/personal-details.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (children) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={false} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        {children}
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="edit-screens"
+        title="Edit screens · 1, 2, 3"
+        subtitle="Four new modal surfaces pushed over the Account tab. Same chrome as verify-email / register: back chip, amber eyebrow, italic serif hero, paper inputs with ink-thickening focus, sticky ink CTA."
+      >
+        <DCArtboard id="edit-name" label="1 · Edit name"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<EditName />)}
+        </DCArtboard>
+
+        <DCArtboard id="phone-enter" label="2A · Phone — enter"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<EditPhoneEnter />)}
+        </DCArtboard>
+
+        <DCArtboard id="phone-verify" label="2B · Phone — verify"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<EditPhoneVerify digits={['1','2','9','','','']} />)}
+        </DCArtboard>
+
+        <DCArtboard id="phone-verify-error" label="2B · Verify — wrong code"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<EditPhoneVerify digits={['1','2','9','4','0','3']} error cooldown={12} />)}
+        </DCArtboard>
+
+        <DCArtboard id="edit-password" label="3 · Change password"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<EditPassword />)}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="avatar-refresh"
+        title="Avatar refresh · Account masthead"
+        subtitle="Three states for the 64px circle at the top of Account, plus the matching value column on the Profile photo row. Both surfaces open the same iOS action sheet."
+      >
+        <DCArtboard id="avatar-states" label="Three states, side-by-side"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<AvatarRefreshDemo />)}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="reasoning"
+        title="Reasoning"
+        subtitle="Why this shape."
+      >
+        <DCArtboard id="notes" label="Notes" width={440} height={cardH} style={{ background: '#fffdf8' }}>
+          <div style={{
+            padding: 28, height: '100%', boxSizing: 'border-box',
+            fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+            color: '#1c1a17', overflow: 'auto',
+          }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+              Compose, <span style={{ fontStyle: 'italic', color: '#c87a3a' }}>don't reinvent.</span>
+            </div>
+            <p style={{ marginTop: 0 }}>
+              All four edit screens share one chrome — the same back chip,
+              amber eyebrow, italic-serif hero, paper input card, and dark-ink
+              sticky CTA that the auth screens (register, verify-email) already
+              own. Lifting that chrome means these four flows feel like one
+              quiet, additive surface rather than four bespoke screens.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>HERO TYPOGRAPHY = THE HEADLINE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              "Update your <em>name</em>." / "What's your <em>number</em>?" /
+              "Check your <em>texts</em>." / "Change your <em>password</em>."
+              The italic word is always what's being edited, in amber — same
+              tic as Home's greeting and the loyalty card. No big titles, no
+              breadcrumbs, no banners.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>OTP IS LIFTED, NOT REDRAWN</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The phone Step B six-cell input is the exact verify-email
+              treatment — 58px paper cells, ink border on focus, large serif
+              digits, the muted "Resend in 28s" cooldown copy underneath.
+              The only difference is the eyebrow ("STEP 2 · CONFIRM"), the
+              hero ("Check your <em>texts</em>."), and the small "Wrong number?
+              Edit" link beneath the helper that pops back to Step A.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>PASSWORD METER</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Four segments that fill amber → green as score rises (zxcvbn-ish
+              scoring on length, mix, symbols). The label underneath is muted
+              and small — "Strong" / "Fair" / "Weak". The rule line
+              underneath the third input ("8+ characters · mix letters and
+              numbers") is the same calm muted treatment as the validation
+              messages everywhere else.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>EYE TOGGLES, EVERY FIELD</div>
+            <p style={{ margin: '6px 0 0' }}>
+              All three password fields get an independent eye/eye-slash on
+              the right, same SVG and tap target as register. When toggled,
+              the input switches to a monospace face so digits and letters
+              read back cleanly.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>AVATAR · LET iOS DRIVE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              No custom action sheet — iOS owns "Take photo / Choose from
+              library / Cancel" perfectly. The three states are just the
+              circle: initial on amber, photo with the same inner shadow,
+              or 60% photo + amber ring spinner. The Profile photo row's
+              value column says <em>Upload</em>, <em>Edit</em>, or
+              <em> Uploading…</em> (shimmer chip) to match.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>SUCCESS IS QUIET</div>
+            <p style={{ margin: '6px 0 0' }}>
+              No "Saved!" modals. The back navigation after Save is the
+              success signal — you land on Account with the new value
+              already in its row. The system stays calm.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TO DECIDE</div>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li>Country picker (Step A chip → half-sheet) — design now, or in a separate round once we know the locale list?</li>
+              <li>Should "current password" auto-verify as the user types it, or stay quiet until Save?</li>
+              <li>Add a "Sign out other devices" toggle on the password screen, or keep that for a dedicated Security panel later?</li>
+              <li>Avatar uploading state — show progress %, or stay with the indeterminate amber ring?</li>
+            </ol>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

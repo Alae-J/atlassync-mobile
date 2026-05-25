@@ -14,6 +14,7 @@ interface RefreshResponse {
   username: string | null;
   role: string;
   emailVerified: boolean;
+  phone: string | null;
 }
 
 let onUnauthenticated: (() => void) | null = null;
@@ -48,12 +49,16 @@ async function refreshAccessToken(): Promise<string | null> {
         { refreshToken },
         { headers: { 'Content-Type': 'application/json' } },
       );
+      const existingUser = await tokenStorage.getUser();
       await tokenStorage.set(data.accessToken, data.refreshToken, {
         userId: data.userId,
         email: data.email,
         username: data.username,
         role: data.role,
         emailVerified: data.emailVerified,
+        phone: data.phone,
+        // avatarUri lives purely on-device for now; preserve across refresh.
+        avatarUri: existingUser?.avatarUri ?? null,
       });
       return data.accessToken;
     } catch {

@@ -10,6 +10,9 @@ export interface StoredUser {
   username: string | null;
   role: string;
   emailVerified: boolean;
+  phone: string | null;
+  /** Local file URI from expo-image-picker. Not yet persisted server-side. */
+  avatarUri: string | null;
 }
 
 export const tokenStorage = {
@@ -32,6 +35,9 @@ export const tokenStorage = {
   },
   async setAccess(access: string): Promise<void> {
     await SecureStore.setItemAsync(ACCESS_KEY, access);
+  },
+  async setUser(user: StoredUser): Promise<void> {
+    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
   },
   async clear(): Promise<void> {
     await Promise.all([

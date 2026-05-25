@@ -1,6 +1,7 @@
 export { api, setUnauthenticatedHandler } from './client';
 export { tokenStorage, type StoredUser } from './storage';
 export { authApi, type LoginPayload, type RegisterPayload } from './auth';
+export { meApi, type PhoneCodeSent } from './me';
 export { sessionsApi, type StartSessionPayload, type PaySessionPayload } from './sessions';
 export { gateApi, type GateScanPayload } from './gate';
 export { productsApi } from './products';
