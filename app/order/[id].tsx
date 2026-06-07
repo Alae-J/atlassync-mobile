@@ -23,6 +23,7 @@ import {
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { sessionsApi } from '../../src/api';
 import { formatPrice } from '../../src/lib/formatPrice';
+import { downloadReceiptPdf } from '../../src/lib/receiptPdf';
 import type { ReceiptResponse } from '../../src/types';
 import { formatTripRange } from '../../src/lib/receiptDates';
 import { useAuth } from '../../src/context/AuthContext';
@@ -50,6 +51,7 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -253,11 +255,34 @@ export default function OrderDetailScreen() {
           <View style={styles.actionsSection}>
             <Text style={styles.eyebrow}>RECEIPT</Text>
             <View style={styles.actionsCard}>
-              <Pressable style={[styles.actionRow, styles.actionRowDivider]}>
+              <Pressable
+                style={[styles.actionRow, styles.actionRowDivider, downloading && { opacity: 0.5 }]}
+                disabled={downloading || !receipt}
+                onPress={async () => {
+                  if (!receipt || downloading) return;
+                  setDownloading(true);
+                  try {
+                    await downloadReceiptPdf(receipt, {
+                      storeLabel: `${storeMeta.name}${storeMeta.city ? ' · ' + storeMeta.city : ''}`,
+                      customerName: user?.username ?? '',
+                    });
+                  } catch (e) {
+                    console.warn('[receipt] PDF download failed', e);
+                  } finally {
+                    setDownloading(false);
+                  }
+                }}
+              >
                 <View style={styles.actionIcon}>
-                  <DownloadSimple size={15} color={Colors.amber} weight="regular" />
+                  {downloading ? (
+                    <ActivityIndicator size="small" color={Colors.amber} />
+                  ) : (
+                    <DownloadSimple size={15} color={Colors.amber} weight="regular" />
+                  )}
                 </View>
-                <Text style={styles.actionLabel}>Download PDF receipt</Text>
+                <Text style={styles.actionLabel}>
+                  {downloading ? 'Preparing PDF…' : 'Download PDF receipt'}
+                </Text>
                 <CaretRight size={13} color={Colors.muted} weight="bold" />
               </Pressable>
               <Pressable style={styles.actionRow}>
