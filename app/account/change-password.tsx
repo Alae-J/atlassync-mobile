@@ -112,6 +112,7 @@ export default function ChangePasswordScreen() {
             onBlur={() => setFocused(null)}
             placeholder="Enter your current password"
             autoFocus
+            role="current"
           />
         </View>
 
@@ -186,6 +187,7 @@ function PasswordField({
   autoFocus,
   onSubmitEditing,
   returnKeyType,
+  role = 'new',
 }: {
   value: string;
   onChangeText: (v: string) => void;
@@ -198,6 +200,9 @@ function PasswordField({
   autoFocus?: boolean;
   onSubmitEditing?: () => void;
   returnKeyType?: 'done' | 'next';
+  /** Tells iOS / Android autofill what kind of password this is.
+   *  'current' for the existing-password field, 'new' for the new + confirm fields. */
+  role?: 'current' | 'new';
 }) {
   return (
     <View style={[styles.field, focused && styles.fieldFocused]}>
@@ -210,6 +215,9 @@ function PasswordField({
         placeholderTextColor={Colors.muted}
         autoCapitalize="none"
         autoCorrect={false}
+        autoComplete={role === 'current' ? 'current-password' : 'password-new'}
+        textContentType={role === 'current' ? 'password' : 'newPassword'}
+        passwordRules={role === 'new' ? 'minlength: 8;' : undefined}
         secureTextEntry={!visible}
         style={styles.input}
         selectionColor={Colors.amber}

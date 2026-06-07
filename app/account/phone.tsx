@@ -254,6 +254,8 @@ export default function PhoneScreen() {
               placeholder="6 12 34 56 78"
               placeholderTextColor={Colors.muted}
               keyboardType="phone-pad"
+              autoComplete="tel"
+              textContentType="telephoneNumber"
               style={styles.numberInput}
               selectionColor={Colors.amber}
               autoFocus

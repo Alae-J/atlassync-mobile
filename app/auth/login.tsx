@@ -287,7 +287,9 @@ export default function LoginScreen() {
                     <TextInput
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      autoCorrect={false}
                       autoComplete="email"
+                      textContentType="emailAddress"
                       placeholder="Email address"
                       placeholderTextColor={Colors.muted}
                       value={email}
@@ -300,6 +302,10 @@ export default function LoginScreen() {
                   <View style={[styles.fieldStacked, focused === 'password' && styles.fieldFocused, { marginTop: 8 }]}>
                     <TextInput
                       secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="current-password"
+                      textContentType="password"
                       placeholder="Password"
                       placeholderTextColor={Colors.muted}
                       value={password}

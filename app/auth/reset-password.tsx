@@ -203,6 +203,9 @@ export default function ResetPasswordScreen() {
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
+            autoComplete="password-new"
+            textContentType="newPassword"
+            passwordRules={`minlength: ${MIN_PASSWORD};`}
             style={styles.input}
             selectionColor={Colors.amber}
             returnKeyType="done"

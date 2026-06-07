@@ -91,6 +91,7 @@ export default function ForgotPasswordScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete="email"
+            textContentType="emailAddress"
             keyboardType="email-address"
             style={styles.input}
             selectionColor={Colors.amber}

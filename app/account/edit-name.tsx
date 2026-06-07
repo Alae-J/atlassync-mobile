@@ -94,14 +94,16 @@ export default function EditNameScreen() {
             onBlur={() => setFocused(false)}
             placeholder="e.g. adam"
             placeholderTextColor={Colors.muted}
-            autoCapitalize="none"
+            autoCapitalize="words"
             autoCorrect={false}
+            autoComplete="name"
+            textContentType="name"
             style={styles.input}
             selectionColor={Colors.amber}
             autoFocus
             returnKeyType="done"
             onSubmitEditing={submit}
-            maxLength={30}
+            maxLength={60}
           />
         </View>
 
