@@ -88,7 +88,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.loyaltyTopRow}>
           <Text style={styles.loyaltyMonogram}>P</Text>
-          <Text style={styles.loyaltyMember}>NEW</Text>
+          <Text style={styles.loyaltyMember}>NEW MEMBER</Text>
         </View>
         <LinearGradient
           colors={['#d4b075', '#a88550']}
