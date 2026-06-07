@@ -11,6 +11,7 @@ import {
   Eye,
   EyeSlash,
   Lock,
+  Question,
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
@@ -125,19 +126,23 @@ export default function LoginScreen() {
         end={{ x: 1, y: 1 }}
       />
 
-      <View style={[styles.topRow, { paddingTop: insets.top + 14 }]}>
+      <View style={[styles.topRow, { paddingTop: insets.top + 10 }]}>
         {step === 'otp' ? (
-          <Pressable onPress={goBack} style={styles.iconBtn}>
+          <Pressable onPress={goBack} style={styles.backChip} hitSlop={8}>
             <ArrowLeft size={16} color={Colors.ink} weight="bold" />
           </Pressable>
         ) : (
-          <View style={styles.iconBtnSpacer} />
+          <View style={styles.brandLockup}>
+            <View style={styles.monoTile}>
+              <Text style={styles.monoLetter}>P</Text>
+            </View>
+            <Text style={styles.wordmark}>PHYGITAL</Text>
+          </View>
         )}
-        <View style={styles.brand}>
-          <View style={styles.brandDot} />
-          <Text style={styles.brandLabel}>PHYGITAL</Text>
-        </View>
-        <View style={styles.iconBtnSpacer} />
+        <Pressable style={styles.helpPill} hitSlop={8} onPress={() => {}}>
+          <Question size={13} color={Colors.muted} weight="regular" />
+          <Text style={styles.helpLabel}>Help</Text>
+        </Pressable>
       </View>
 
       <View style={styles.heroWrap}>
@@ -338,26 +343,62 @@ const styles = StyleSheet.create({
   gradientBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 320 },
 
   topRow: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.inkGlassFill,
+  backChip: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(21,20,15,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconBtnSpacer: { width: 36, height: 36 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  brandDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent },
-  brandLabel: {
+  brandLockup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  monoTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: Colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  monoLetter: {
+    fontFamily: Fonts.serifItalic,
+    fontSize: 23,
+    lineHeight: 23,
+    color: Colors.cream,
+    includeFontPadding: false,
+  },
+  wordmark: {
     fontFamily: Fonts.sansSemibold,
-    fontSize: 11,
-    letterSpacing: 1.5,
+    fontSize: 13.5,
+    letterSpacing: 1.6,
+    color: Colors.ink,
+  },
+  helpPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(21,20,15,0.05)',
+  },
+  helpLabel: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12.5,
     color: Colors.muted,
   },
 
