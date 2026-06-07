@@ -12,6 +12,7 @@ import Animated, {
 import { Check, ArrowCounterClockwise, CaretRight, Warning, WifiHigh } from 'phosphor-react-native';
 import { Colors, Fonts, Radius } from '../../constants/theme';
 import type { DisplayProduct } from '../../lib/productDisplay';
+import { formatPrice } from '../../lib/formatPrice';
 import { ProductThumb } from './ProductThumb';
 import { AislePill } from './AislePill';
 import { NutriscoreBadge } from './NutriscoreBadge';
@@ -158,7 +159,7 @@ export function ScanPeekCard({ peek, onDismiss, onSeeDetails, onUndo, onTryAgain
               </Text>
             )}
           </View>
-          <Text style={styles.price}>${product.price.toFixed(2)}</Text>
+          <Text style={styles.price}>{formatPrice(product.price, product.currencyCode)}</Text>
         </View>
 
         {showAllergen && (

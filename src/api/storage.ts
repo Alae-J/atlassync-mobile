@@ -28,7 +28,7 @@ export interface UserPreferences {
  *  than the current schema (pre-preferences logins). */
 export const EMPTY_PREFERENCES: UserPreferences = {
   defaultStoreId: null,
-  currencyCode: 'USD',
+  currencyCode: 'MAD',
   dietaryPrefs: [],
   allergens: [],
   notificationPrefs: {},

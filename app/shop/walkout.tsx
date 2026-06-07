@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { useSession } from '../../src/context/SessionContext';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 export default function WalkoutScreen() {
   const insets = useSafeAreaInsets();
@@ -96,7 +97,7 @@ export default function WalkoutScreen() {
           <View style={styles.ticketBottomRow}>
             <Text style={styles.ticketBottomText}>{itemCount} items</Text>
             <Text style={styles.ticketBottomText}>
-              Total <Text style={styles.ticketBottomStrong}>${total.toFixed(2)}</Text>
+              Total <Text style={styles.ticketBottomStrong}>{formatPrice(total)}</Text>
             </Text>
           </View>
         </View>

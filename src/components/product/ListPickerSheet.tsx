@@ -9,6 +9,7 @@ import Animated, {
 import { Plus } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows } from '../../constants/theme';
 import { savedLists, productById } from '../../data/catalog';
+import { formatPrice } from '../../lib/formatPrice';
 
 interface Props {
   visible: boolean;
@@ -56,7 +57,7 @@ export function ListPickerSheet({
   }));
   const scrimStyle = useAnimatedStyle(() => ({ opacity: scrim.value }));
 
-  const currency = formatCurrency(productPrice, currencyCode);
+  const currency = formatPrice(productPrice, currencyCode);
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
@@ -114,11 +115,6 @@ export function ListPickerSheet({
       </View>
     </Modal>
   );
-}
-
-function formatCurrency(amount: number, code: string): string {
-  const symbol = code === 'USD' ? '$' : code === 'EUR' ? '€' : code === 'EGP' ? 'EGP ' : `${code} `;
-  return `${symbol}${amount.toFixed(2)}`;
 }
 
 const styles = StyleSheet.create({

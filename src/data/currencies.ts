@@ -22,7 +22,7 @@ export const currencies: Currency[] = [
   { code: 'AED', name: 'UAE Dirham',      symbol: 'د.إ' },
 ];
 
-export const DEFAULT_CURRENCY_CODE = 'USD';
+export const DEFAULT_CURRENCY_CODE = 'MAD';
 
 export function currencyByCode(code: string | null | undefined): Currency | undefined {
   if (!code) return undefined;

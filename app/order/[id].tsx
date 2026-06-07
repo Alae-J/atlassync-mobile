@@ -22,6 +22,7 @@ import {
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { sessionsApi } from '../../src/api';
+import { formatPrice } from '../../src/lib/formatPrice';
 import type { ReceiptResponse } from '../../src/types';
 import { formatTripRange } from '../../src/lib/receiptDates';
 import { useAuth } from '../../src/context/AuthContext';
@@ -157,7 +158,7 @@ export default function OrderDetailScreen() {
           <Text style={styles.metaLine}>
             {formatTripRange(receipt.createdAt, receipt.completedAt)}
           </Text>
-          <Text style={styles.totalDisplay}>${totalDisplay.toFixed(2)}</Text>
+          <Text style={styles.totalDisplay}>{formatPrice(totalDisplay)}</Text>
         </View>
 
         {/* Stats strip */}
@@ -396,9 +397,9 @@ function ItemRow({
       </View>
       <View style={styles.itemPriceCol}>
         <Text style={styles.itemQty}>
-          {quantity} × ${unitPrice.toFixed(2)}
+          {quantity} × {formatPrice(unitPrice)}
         </Text>
-        <Text style={styles.itemLineTotal}>${lineTotal.toFixed(2)}</Text>
+        <Text style={styles.itemLineTotal}>{formatPrice(lineTotal)}</Text>
       </View>
     </Pressable>
   );
@@ -408,7 +409,7 @@ function TotalsRow({ label, value, bold }: { label: string; value: number; bold?
   return (
     <View style={styles.totalsRow}>
       <Text style={[styles.totalsLabel, bold && styles.totalsLabelBold]}>{label}</Text>
-      <Text style={[styles.totalsValue, bold && styles.totalsValueBold]}>${value.toFixed(2)}</Text>
+      <Text style={[styles.totalsValue, bold && styles.totalsValueBold]}>{formatPrice(value)}</Text>
     </View>
   );
 }

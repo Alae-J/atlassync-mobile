@@ -8,6 +8,7 @@ import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { savedLists, productById } from '../../src/data/catalog';
 import { useSession } from '../../src/context/SessionContext';
 import { gateApi } from '../../src/api';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 export default function ArriveScreen() {
   const insets = useSafeAreaInsets();
@@ -79,7 +80,7 @@ export default function ArriveScreen() {
                 <View style={styles.listMetaRow}>
                   <Text style={styles.listMeta}>{list.items.length} items</Text>
                   <Text style={styles.listMetaDot}>·</Text>
-                  <Text style={styles.listMeta}>~${total.toFixed(2)}</Text>
+                  <Text style={styles.listMeta}>~{formatPrice(total)}</Text>
                   <Text style={styles.listMetaDot}>·</Text>
                   <Text style={styles.listMeta}>used {list.lastUsed}</Text>
                 </View>

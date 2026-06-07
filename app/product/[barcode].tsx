@@ -24,6 +24,7 @@ import {
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { productsApi } from '../../src/api';
 import { toDisplayProduct, type DisplayProduct } from '../../src/lib/productDisplay';
+import { formatPrice } from '../../src/lib/formatPrice';
 import { highlightIngredients, matchedAllergens } from '../../src/lib/allergens';
 import { useSession } from '../../src/context/SessionContext';
 import { useAuth } from '../../src/context/AuthContext';
@@ -192,7 +193,7 @@ export default function ProductDetailScreen() {
           <Text style={styles.heroTitle}>{renderTitle(product.name)}</Text>
 
           <View style={styles.priceRow}>
-            <Text style={styles.priceMain}>${product.price.toFixed(2)}</Text>
+            <Text style={styles.priceMain}>{formatPrice(product.price, product.currencyCode)}</Text>
             <Text style={styles.priceUnit}>per {product.unit}</Text>
           </View>
 
@@ -383,7 +384,7 @@ function CTABar({
         )}
         <Text style={styles.ctaInkText}>{added ? 'Added to cart' : 'Add to cart'}</Text>
       </View>
-      <Text style={styles.ctaPrice}>${product.price.toFixed(2)}</Text>
+      <Text style={styles.ctaPrice}>{formatPrice(product.price, product.currencyCode)}</Text>
     </Pressable>
   );
 }

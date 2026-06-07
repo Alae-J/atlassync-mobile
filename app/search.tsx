@@ -26,6 +26,7 @@ import type { Product } from '../src/types';
 import { aisles } from '../src/data/aisles';
 import { recentSearches } from '../src/lib/recentSearches';
 import { toDisplayProduct, type DisplayProduct } from '../src/lib/productDisplay';
+import { formatPrice } from '../src/lib/formatPrice';
 import { useSession } from '../src/context/SessionContext';
 import { useAuth } from '../src/context/AuthContext';
 import {
@@ -441,7 +442,7 @@ function ResultRow({
       </Pressable>
 
       <View style={styles.priceCol}>
-        <Text style={styles.price}>${product.price.toFixed(2)}</Text>
+        <Text style={styles.price}>{formatPrice(product.price, product.currencyCode)}</Text>
         <PlusButton onPress={() => onPlus(product)} added={added} />
       </View>
     </View>

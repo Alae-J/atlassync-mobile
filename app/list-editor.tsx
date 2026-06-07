@@ -7,6 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../src/constants/theme';
 import { TabBar } from '../src/components/TabBar';
 import { products, productById, productTags, savedLists, type Product } from '../src/data/catalog';
+import { formatPrice } from '../src/lib/formatPrice';
 
 interface ListItem {
   id: string;
@@ -115,7 +116,7 @@ export default function ListEditorScreen() {
         </View>
         <Text style={styles.heroTitle}>{name}<Text style={styles.heroItalic}>.</Text></Text>
         <Text style={styles.heroMeta}>
-          {items.length} items lined up · est. <Text style={styles.heroMetaStrong}>${totalEst.toFixed(2)}</Text>
+          {items.length} items lined up · est. <Text style={styles.heroMetaStrong}>{formatPrice(totalEst)}</Text>
         </Text>
       </View>
 
@@ -154,7 +155,7 @@ export default function ListEditorScreen() {
                   <View style={styles.tagPill}>
                     <Text style={styles.tagPillText}>{p.tag}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>${(p.price * it.qty).toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>{formatPrice(p.price * it.qty)}</Text>
                 </View>
               </View>
               <View style={styles.stepper}>
@@ -175,7 +176,7 @@ export default function ListEditorScreen() {
         <View style={[styles.totalBar, { bottom: TabBarHeight + insets.bottom + 14 }]}>
           <View>
             <Text style={styles.totalLabel}>TOTAL</Text>
-            <Text style={styles.totalAmount}>${totalEst.toFixed(2)}</Text>
+            <Text style={styles.totalAmount}>{formatPrice(totalEst)}</Text>
           </View>
           <Pressable style={styles.saveBtn} onPress={exit}>
             <Text style={styles.saveBtnText}>Save & go</Text>
@@ -256,7 +257,7 @@ export default function ListEditorScreen() {
                 <View>
                   <Text style={styles.qtyName}>{qtyProduct.name}</Text>
                   <Text style={styles.qtyMeta}>
-                    ${qtyProduct.price.toFixed(2)} per {qtyProduct.unit} · {qtyProduct.tag}
+                    {formatPrice(qtyProduct.price)} per {qtyProduct.unit} · {qtyProduct.tag}
                   </Text>
                 </View>
               </View>
@@ -281,7 +282,7 @@ export default function ListEditorScreen() {
               <View style={styles.qtySubtotal}>
                 <Text style={styles.qtySubtotalLabel}>Subtotal</Text>
                 <Text style={styles.qtySubtotalValue}>
-                  ${(qtyProduct.price * pendingQty).toFixed(2)}
+                  {formatPrice(qtyProduct.price * pendingQty)}
                 </Text>
               </View>
               <Pressable style={styles.confirmBtn} onPress={confirmQty}>
@@ -423,7 +424,7 @@ function ProductPickRow({ product, onPress }: { product: Product; onPress: () =>
       <View style={{ flex: 1 }}>
         <Text style={styles.pickName}>{product.name}</Text>
         <Text style={styles.pickMeta}>
-          {product.tag} · ${product.price.toFixed(2)}/{product.unit}
+          {product.tag} · {formatPrice(product.price)}/{product.unit}
         </Text>
       </View>
       <View style={styles.pickAddBtn}>

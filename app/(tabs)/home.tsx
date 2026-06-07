@@ -11,6 +11,7 @@ import { firstName } from '../../src/lib/userDisplay';
 import { sessionsApi } from '../../src/api';
 import type { SessionHistoryItem } from '../../src/types';
 import { formatShortDate } from '../../src/lib/receiptDates';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 type HeroState = 'default' | 'active';
 
@@ -165,7 +166,7 @@ export default function HomeScreen() {
                   <Text style={styles.shopDate}>{formatShortDate(shop.createdAt)}</Text>
                   <Text style={styles.shopMeta}>{shop.itemCount ?? 0} items</Text>
                 </View>
-                <Text style={styles.shopAmount}>${(shop.totalAmount ?? 0).toFixed(2)}</Text>
+                <Text style={styles.shopAmount}>{formatPrice(shop.totalAmount ?? 0)}</Text>
               </Pressable>
             ))}
             {recentShops.length === 0 && (

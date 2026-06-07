@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, WarningCircle } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { useSession } from '../../src/context/SessionContext';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 const TAX_RATE = 0.0875;
 
@@ -106,11 +107,11 @@ export default function ReviewScreen() {
                   <Text style={styles.receiptName}>{line.productName}</Text>
                 </View>
                 <Text style={styles.receiptMeta}>
-                  {line.quantity} × ${line.priceAtAddition.toFixed(2)}
+                  {line.quantity} × {formatPrice(line.priceAtAddition)}
                 </Text>
               </View>
               <Text style={styles.receiptAmount}>
-                ${(line.priceAtAddition * line.quantity).toFixed(2)}
+                {formatPrice(line.priceAtAddition * line.quantity)}
               </Text>
             </View>
           ))}
@@ -119,11 +120,11 @@ export default function ReviewScreen() {
         <View style={styles.totalsBlock}>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>Subtotal</Text>
-            <Text style={styles.totalsAmount}>${subtotal.toFixed(2)}</Text>
+            <Text style={styles.totalsAmount}>{formatPrice(subtotal)}</Text>
           </View>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>Tax (8.75%)</Text>
-            <Text style={styles.totalsAmount}>${tax.toFixed(2)}</Text>
+            <Text style={styles.totalsAmount}>{formatPrice(tax)}</Text>
           </View>
         </View>
 
@@ -138,7 +139,7 @@ export default function ReviewScreen() {
         <View style={styles.payCard}>
           <View>
             <Text style={styles.payLabel}>YOU PAY</Text>
-            <Text style={styles.payAmount}>${total.toFixed(2)}</Text>
+            <Text style={styles.payAmount}>{formatPrice(total)}</Text>
           </View>
           <Pressable
             style={[styles.payBtn, (paying || lines.length === 0) && { opacity: 0.6 }]}

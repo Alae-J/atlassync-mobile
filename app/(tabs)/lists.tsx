@@ -4,6 +4,7 @@ import { Plus, CaretRight } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
 import { savedLists, productById, type SavedList } from '../../src/data/catalog';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 export default function ListsScreen() {
   const insets = useSafeAreaInsets();
@@ -69,7 +70,7 @@ function ListRow({ list }: { list: SavedList }) {
           <View style={styles.metaDot} />
           <Text style={styles.metaItalic}>{list.lastUsed}</Text>
         </View>
-        <Text style={styles.estText}>est. ${list.estimate?.toFixed(2)}</Text>
+        <Text style={styles.estText}>est. {list.estimate != null ? formatPrice(list.estimate) : '—'}</Text>
       </View>
       <CaretRight size={14} color={Colors.muted} weight="bold" />
     </Pressable>
