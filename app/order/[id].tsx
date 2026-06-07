@@ -125,6 +125,21 @@ export default function OrderDetailScreen() {
   const totalDisplay = isCancelled ? 0 : receipt.totalAmount ?? 0;
   const showHelpNote = !isCancelled && !!helpAt;
 
+  const handleShareReceipt = async () => {
+    if (!receipt || downloading) return;
+    setDownloading(true);
+    try {
+      await downloadReceiptPdf(receipt, {
+        storeLabel: `${storeMeta.name}${storeMeta.city ? ' · ' + storeMeta.city : ''}`,
+        customerName: user?.username ?? '',
+      });
+    } catch (e) {
+      console.warn('[receipt] PDF share failed', e);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       {/* Header strip — celebratory walkout, or quiet past trip */}
@@ -140,7 +155,12 @@ export default function OrderDetailScreen() {
           }}
         />
       ) : (
-        <PastHeader insetsTop={insets.top} onBack={() => router.back()} />
+        <PastHeader
+          insetsTop={insets.top}
+          onBack={() => router.back()}
+          onShare={handleShareReceipt}
+          shareBusy={downloading}
+        />
       )}
 
       <ScrollView
@@ -258,20 +278,7 @@ export default function OrderDetailScreen() {
               <Pressable
                 style={[styles.actionRow, styles.actionRowDivider, downloading && { opacity: 0.5 }]}
                 disabled={downloading || !receipt}
-                onPress={async () => {
-                  if (!receipt || downloading) return;
-                  setDownloading(true);
-                  try {
-                    await downloadReceiptPdf(receipt, {
-                      storeLabel: `${storeMeta.name}${storeMeta.city ? ' · ' + storeMeta.city : ''}`,
-                      customerName: user?.username ?? '',
-                    });
-                  } catch (e) {
-                    console.warn('[receipt] PDF download failed', e);
-                  } finally {
-                    setDownloading(false);
-                  }
-                }}
+                onPress={handleShareReceipt}
               >
                 <View style={styles.actionIcon}>
                   {downloading ? (
@@ -376,7 +383,17 @@ function WalkoutHeader({
   );
 }
 
-function PastHeader({ insetsTop, onBack }: { insetsTop: number; onBack: () => void }) {
+function PastHeader({
+  insetsTop,
+  onBack,
+  onShare,
+  shareBusy,
+}: {
+  insetsTop: number;
+  onBack: () => void;
+  onShare?: () => void;
+  shareBusy?: boolean;
+}) {
   return (
     <View>
       <View style={{ height: insetsTop }} />
@@ -384,8 +401,17 @@ function PastHeader({ insetsTop, onBack }: { insetsTop: number; onBack: () => vo
         <Pressable onPress={onBack} hitSlop={10} style={styles.backChip}>
           <ArrowLeft size={16} color={Colors.ink} weight="regular" />
         </Pressable>
-        <Pressable hitSlop={10} style={styles.backChip}>
-          <ShareNetwork size={15} color={Colors.ink} weight="regular" />
+        <Pressable
+          onPress={onShare}
+          disabled={!onShare || shareBusy}
+          hitSlop={10}
+          style={[styles.backChip, shareBusy && { opacity: 0.5 }]}
+        >
+          {shareBusy ? (
+            <ActivityIndicator size="small" color={Colors.ink} />
+          ) : (
+            <ShareNetwork size={15} color={Colors.ink} weight="regular" />
+          )}
         </Pressable>
       </View>
     </View>
