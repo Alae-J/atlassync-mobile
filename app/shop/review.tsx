@@ -4,15 +4,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, WarningCircle } from 'phosphor-react-native';
 import { router } from 'expo-router';
+import { useStripe } from '@stripe/stripe-react-native';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { useSession } from '../../src/context/SessionContext';
+import { useAuth } from '../../src/context/AuthContext';
+import { sessionsApi } from '../../src/api';
+import { waitForSessionStatus } from '../../src/lib/waitForSessionStatus';
 import { formatPrice } from '../../src/lib/formatPrice';
 
 const TAX_RATE = 0.0875;
 
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();
-  const { cart, refreshCart, pay, sessionId } = useSession();
+  const { cart, refreshCart, pay, sessionId, applyCompletedSession } = useSession();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { user } = useAuth();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,14 +45,45 @@ export default function ReviewScreen() {
   const total = subtotal + tax;
 
   const handlePay = async () => {
-    if (paying) return;
+    if (!sessionId || paying) return;
     setError(null);
     setPaying(true);
     try {
-      await pay();
+      // 1. Server creates the PaymentIntent (server-authoritative amount).
+      const intent = await sessionsApi.createPaymentIntent(sessionId);
+
+      // 2. Hand the client_secret to Stripe SDK and present the sheet.
+      const init = await initPaymentSheet({
+        paymentIntentClientSecret: intent.clientSecret,
+        merchantDisplayName: 'AtlasSync',
+        // Required for redirect-flow payment methods (3DS, iDEAL, etc.).
+        returnURL: 'atlassync://stripe-redirect',
+        defaultBillingDetails: { name: user?.username ?? undefined },
+      });
+      if (init.error) throw new Error(init.error.message);
+
+      const present = await presentPaymentSheet();
+      if (present.error) {
+        // Canceled = user dismissed the sheet — don't surface as an error.
+        if ((present.error.code as string) === 'Canceled') {
+          setPaying(false);
+          return;
+        }
+        throw new Error(present.error.message);
+      }
+
+      // 3. Wait for the webhook to mark the session COMPLETED.
+      const completed = await waitForSessionStatus(sessionId, 'COMPLETED');
+      applyCompletedSession(completed);
+
+      // 4. Walkout — exitQr is now in SessionContext.
       router.replace('/shop/walkout');
-    } catch {
-      setError('Payment failed. Try again.');
+    } catch (e: unknown) {
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Payment failed. Try again.',
+      );
     } finally {
       setPaying(false);
     }
