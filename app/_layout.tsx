@@ -6,6 +6,7 @@ import { useFonts, Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_7
 import { InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { View } from 'react-native';
 import { Colors } from '../src/constants/theme';
 import { AuthProvider } from '../src/context/AuthContext';
@@ -32,14 +33,19 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <SessionProvider>
-            <StatusBar style="dark" />
-            <View style={{ flex: 1, backgroundColor: Colors.background }}>
-              <Slot />
-            </View>
-          </SessionProvider>
-        </AuthProvider>
+        <StripeProvider
+          publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}
+          merchantIdentifier="merchant.com.atlassync.demo"
+        >
+          <AuthProvider>
+            <SessionProvider>
+              <StatusBar style="dark" />
+              <View style={{ flex: 1, backgroundColor: Colors.background }}>
+                <Slot />
+              </View>
+            </SessionProvider>
+          </AuthProvider>
+        </StripeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
