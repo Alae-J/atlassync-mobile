@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, WarningCircle } from 'phosphor-react-native';
 import { router } from 'expo-router';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripe, PaymentSheetError } from '@stripe/stripe-react-native';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { useSession } from '../../src/context/SessionContext';
 import { useAuth } from '../../src/context/AuthContext';
@@ -16,10 +16,11 @@ const TAX_RATE = 0.0875;
 
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();
-  const { cart, refreshCart, pay, sessionId, applyCompletedSession } = useSession();
+  const { cart, refreshCart, sessionId, applyCompletedSession } = useSession();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { user } = useAuth();
   const [paying, setPaying] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Pressing back from review should land on scan, not whatever the nested
@@ -45,7 +46,7 @@ export default function ReviewScreen() {
   const total = subtotal + tax;
 
   const handlePay = async () => {
-    if (!sessionId || paying) return;
+    if (!sessionId || paying || paymentConfirmed) return;
     setError(null);
     setPaying(true);
     try {
@@ -60,30 +61,46 @@ export default function ReviewScreen() {
         returnURL: 'atlassync://stripe-redirect',
         defaultBillingDetails: { name: user?.username ?? undefined },
       });
-      if (init.error) throw new Error(init.error.message);
+      if (init.error) {
+        console.warn('[stripe] initPaymentSheet failed', init.error);
+        throw new Error(init.error.localizedMessage ?? init.error.message);
+      }
 
       const present = await presentPaymentSheet();
       if (present.error) {
-        // Canceled = user dismissed the sheet — don't surface as an error.
-        if ((present.error.code as string) === 'Canceled') {
-          setPaying(false);
-          return;
-        }
-        throw new Error(present.error.message);
+        // User dismissed the sheet — don't surface as an error. finally
+        // resets the spinner so they can retry.
+        if (present.error.code === PaymentSheetError.Canceled) return;
+        console.warn('[stripe] presentPaymentSheet failed', present.error);
+        throw new Error(present.error.localizedMessage ?? present.error.message);
       }
 
-      // 3. Wait for the webhook to mark the session COMPLETED.
-      const completed = await waitForSessionStatus(sessionId, 'COMPLETED');
+      // 3. Stripe has charged the card. Lock the Pay button so a slow
+      //    webhook can't lead to a second charge if the user re-taps.
+      setPaymentConfirmed(true);
+
+      // 4. Wait for the webhook to mark the session COMPLETED.
+      const completed = await waitForSessionStatus(sessionId, 'COMPLETED', {
+        timeoutMs: 60_000,
+      });
       applyCompletedSession(completed);
 
-      // 4. Walkout — exitQr is now in SessionContext.
+      // 5. Walkout — exitQr is now in SessionContext.
       router.replace('/shop/walkout');
     } catch (e: unknown) {
-      setError(
-        e instanceof Error && e.message
-          ? e.message
-          : 'Payment failed. Try again.',
-      );
+      if (paymentConfirmed) {
+        // Charge cleared but we couldn't see COMPLETED in time. Tell the
+        // user we'll finalize in the background — DO NOT re-enable Pay.
+        setError(
+          'Payment received. We\'re finalizing your trip — open Orders in a moment to see the receipt.',
+        );
+      } else {
+        setError(
+          e instanceof Error && e.message
+            ? e.message
+            : 'Payment failed. Try again.',
+        );
+      }
     } finally {
       setPaying(false);
     }
@@ -179,12 +196,14 @@ export default function ReviewScreen() {
             <Text style={styles.payAmount}>{formatPrice(total)}</Text>
           </View>
           <Pressable
-            style={[styles.payBtn, (paying || lines.length === 0) && { opacity: 0.6 }]}
-            disabled={paying || lines.length === 0}
+            style={[styles.payBtn, (paying || paymentConfirmed || lines.length === 0) && { opacity: 0.6 }]}
+            disabled={paying || paymentConfirmed || lines.length === 0}
             onPress={handlePay}
           >
-            <Text style={styles.payBtnText}>{paying ? 'Processing…' : 'Pay & walk out'}</Text>
-            {!paying && <ArrowRight size={14} color={Colors.ink} weight="bold" />}
+            <Text style={styles.payBtnText}>
+              {paying ? 'Processing…' : paymentConfirmed ? 'Confirming…' : 'Pay & walk out'}
+            </Text>
+            {!paying && !paymentConfirmed && <ArrowRight size={14} color={Colors.ink} weight="bold" />}
           </Pressable>
         </View>
       </View>
