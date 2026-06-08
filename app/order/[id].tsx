@@ -181,6 +181,7 @@ export default function OrderDetailScreen() {
             {formatTripRange(receipt.createdAt, receipt.completedAt)}
           </Text>
           <Text style={styles.totalDisplay}>{formatPrice(totalDisplay)}</Text>
+          <StatusBadge status={receipt.status} />
         </View>
 
         {/* Stats strip */}
@@ -480,6 +481,25 @@ function emojiForName(name: string): string {
   return '📦';
 }
 
+// ── Status Badge ──────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<string, { label: string; fg: string; bg: string }> = {
+  REFUNDED: { label: 'REFUNDED', fg: Colors.cream, bg: Colors.danger },
+  PARTIAL_REFUND: { label: 'PARTIAL REFUND', fg: Colors.cream, bg: Colors.amber },
+  DISPUTED: { label: 'DISPUTED', fg: Colors.cream, bg: Colors.amber },
+  CHARGEBACK_LOST: { label: 'CHARGEBACK LOST', fg: Colors.cream, bg: Colors.danger },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const config = STATUS_CONFIG[status];
+  if (!config) return null;
+  return (
+    <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
+      <Text style={[styles.statusBadgeText, { color: config.fg }]}>{config.label}</Text>
+    </View>
+  );
+}
+
 // ── Styles ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
@@ -599,6 +619,18 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     marginTop: 18,
     includeFontPadding: false,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginTop: 10,
+  },
+  statusBadgeText: {
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 10.5,
+    letterSpacing: 1.5,
   },
 
   // Stats strip
