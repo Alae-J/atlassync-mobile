@@ -12,6 +12,7 @@
     "@expo-google-fonts/geist": "^0.4.1",
     "@expo-google-fonts/instrument-serif": "^0.4.1",
     "@stomp/stompjs": "^7.3.0",
+    "@stripe/stripe-react-native": "0.50.3",
     "axios": "^1.15.0",
     "expo": "~54.0.33",
     "expo-blur": "~15.0.8",
