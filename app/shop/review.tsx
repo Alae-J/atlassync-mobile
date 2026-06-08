@@ -12,8 +12,6 @@ import { sessionsApi } from '../../src/api';
 import { waitForSessionStatus } from '../../src/lib/waitForSessionStatus';
 import { formatPrice } from '../../src/lib/formatPrice';
 
-const TAX_RATE = 0.0875;
-
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();
   const { cart, refreshCart, sessionId, applyCompletedSession } = useSession();
@@ -42,8 +40,9 @@ export default function ReviewScreen() {
 
   const lines = cart?.items ?? [];
   const subtotal = cart?.total ?? 0;
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  // Tax is computed by Stripe Tax on the PaymentIntent — the PaymentSheet
+  // shows the final breakdown. Our local total is just the cart subtotal.
+  const displayTotal = subtotal;
 
   const handlePay = async () => {
     if (!sessionId || paying || paymentConfirmed) return;
@@ -177,8 +176,8 @@ export default function ReviewScreen() {
             <Text style={styles.totalsAmount}>{formatPrice(subtotal)}</Text>
           </View>
           <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>Tax (8.75%)</Text>
-            <Text style={styles.totalsAmount}>{formatPrice(tax)}</Text>
+            <Text style={styles.totalsLabel}>Tax</Text>
+            <Text style={styles.totalsAmount}>Calculated at checkout</Text>
           </View>
         </View>
 
@@ -193,7 +192,7 @@ export default function ReviewScreen() {
         <View style={styles.payCard}>
           <View>
             <Text style={styles.payLabel}>YOU PAY</Text>
-            <Text style={styles.payAmount}>{formatPrice(total)}</Text>
+            <Text style={styles.payAmount}>{formatPrice(displayTotal)}</Text>
           </View>
           <Pressable
             style={[styles.payBtn, (paying || paymentConfirmed || lines.length === 0) && { opacity: 0.6 }]}
