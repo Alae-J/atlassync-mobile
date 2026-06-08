@@ -93,6 +93,14 @@ export interface PaymentResponse {
   exitQr: QrData;
 }
 
+export interface PaymentIntentResponse {
+  sessionId: string;
+  paymentIntentId: string;
+  clientSecret: string;
+  amount: number;
+  currency: string;
+}
+
 export interface GateValidationResponse {
   valid: boolean;
   sessionId: string | null;
@@ -104,6 +112,7 @@ export interface SessionInfo {
   userId: number;
   status: string;
   createdAt: string;
+  exitQr?: QrData | null;
 }
 
 /** Frozen line item snapshotted from the cart at payment time. */

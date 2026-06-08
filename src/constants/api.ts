@@ -48,6 +48,7 @@ export const Endpoints = {
     start: '/api/sessions/start',
     get: (id: string) => `/api/sessions/${id}`,
     pay: (id: string) => `/api/sessions/${id}/pay`,
+    payIntent: (id: string) => `/api/sessions/${id}/pay/intent`,
     cancel: (id: string) => `/api/sessions/${id}/cancel`,
     receipt: (id: string) => `/api/sessions/${id}/receipt`,
     history: '/api/sessions/history',
