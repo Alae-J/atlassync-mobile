@@ -171,3 +171,23 @@ export interface ShoppingListDetail {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Analytics */
+export interface MonthlySpendCurrent {
+  yearMonth: string;
+  totalSpend: number;
+  tripCount: number;
+  avgTrip: number;
+  currency: string;
+}
+
+export interface MonthlySpendHistoryItem {
+  yearMonth: string;
+  totalSpend: number;
+  tripCount: number;
+}
+
+export interface MonthlySpendResponse {
+  currentMonth: MonthlySpendCurrent;
+  history: MonthlySpendHistoryItem[];
+}
