@@ -17,6 +17,24 @@ export default function ArriveScreen() {
   const [listsLoading, setListsLoading] = useState(true);
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creatingList, setCreatingList] = useState(false);
+
+  const handleNewList = async () => {
+    if (creatingList) return;
+    setError(null);
+    setCreatingList(true);
+    try {
+      const created = await listsApi.create({ name: 'New list', items: [] });
+      router.push({
+        pathname: '/list-editor',
+        params: { id: String(created.id), from: 'shop-arrive' },
+      });
+    } catch {
+      setError('Could not create a list. Try again.');
+    } finally {
+      setCreatingList(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -125,11 +143,14 @@ export default function ArriveScreen() {
 
         <View style={styles.altRow}>
           <Pressable
-            style={styles.altBtn}
-            onPress={() => router.push({ pathname: '/list-editor', params: { from: 'shop-arrive' } })}
+            style={[styles.altBtn, creatingList && { opacity: 0.6 }]}
+            disabled={creatingList}
+            onPress={handleNewList}
           >
             <View style={styles.altIcon}>
-              <Plus size={14} color={Colors.ink} weight="bold" />
+              {creatingList
+                ? <ActivityIndicator size="small" color={Colors.ink} />
+                : <Plus size={14} color={Colors.ink} weight="bold" />}
             </View>
             <Text style={styles.altTitle}>New list</Text>
             <Text style={styles.altDesc}>Build it on the fly as you shop.</Text>
