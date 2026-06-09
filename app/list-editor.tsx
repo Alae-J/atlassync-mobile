@@ -31,12 +31,12 @@ export default function ListEditorScreen() {
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [params.id]);
 
-  // Redirect back if there's no valid numeric id
+  // Redirect back if there's no valid numeric id — the editor can't save without one.
   useEffect(() => {
-    if (params.id !== undefined && listId === null) {
+    if (listId === null) {
       router.replace('/(tabs)/lists');
     }
-  }, [listId, params.id]);
+  }, [listId]);
 
   const [items, setItems] = useState<ListItem[]>([]);
   const [name, setName] = useState('New list');
