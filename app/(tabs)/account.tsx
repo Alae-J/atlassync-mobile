@@ -15,7 +15,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
-import { sessionsApi } from '../../src/api';
+import { analyticsApi, sessionsApi } from '../../src/api';
+import type { MonthlySpendCurrent } from '../../src/types';
+import { formatPrice } from '../../src/lib/formatPrice';
 import {
   CaretRight,
   User as UserIcon,
@@ -171,6 +173,24 @@ function ProfileTab() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const hasPhoto = !!user?.avatarUri;
 
+  const [spend, setSpend] = useState<MonthlySpendCurrent | null>(null);
+  const [spendError, setSpendError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setSpendError(false);
+    analyticsApi
+      .monthlySpend()
+      .then((r) => {
+        if (!cancelled) setSpend(r.currentMonth);
+      })
+      .catch(() => {
+        if (!cancelled) setSpendError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSignOut = async () => {
     await logout();
     router.replace('/auth/login');
@@ -262,19 +282,24 @@ function ProfileTab() {
         />
       </Card>
 
-      <SectionHeader eyebrow="THIS MONTH" title="Spent" italicWord="$248.40" />
-      <View style={styles.budgetCard}>
-        <View style={styles.budgetTopRow}>
-          <Text style={styles.budgetCaption}>6 trips · $41/trip avg</Text>
-          <Text style={styles.budgetCaption}>
-            Budget <Text style={styles.budgetCaptionStrong}>$400</Text>
-          </Text>
-        </View>
-        <View style={styles.budgetTrack}>
-          <View style={styles.budgetFill} />
-        </View>
-        <Text style={styles.budgetFooter}>62% of budget · $151.60 left</Text>
-      </View>
+      {!spendError && (
+        <>
+          <SectionHeader
+            eyebrow="THIS MONTH"
+            title="Spent"
+            italicWord={spend ? formatPrice(spend.totalSpend, spend.currency) : '—'}
+          />
+          <View style={styles.budgetCard}>
+            <View style={styles.budgetTopRow}>
+              <Text style={styles.budgetCaption}>
+                {spend
+                  ? `${spend.tripCount} ${spend.tripCount === 1 ? 'trip' : 'trips'} · ${formatPrice(spend.avgTrip, spend.currency)}/trip avg`
+                  : 'Loading…'}
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
 
       <SectionHeader eyebrow="DIET" title="Tastes &" italicWord="dislikes" />
       <View style={styles.chipCard}>
