@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
+import { sessionsApi } from '../../src/api';
 import {
   CaretRight,
   User as UserIcon,
@@ -301,6 +302,20 @@ function ProfileTab() {
 }
 
 function PaymentsTab() {
+  const [receiptCount, setReceiptCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    sessionsApi
+      .history(100)
+      .then((rows) => {
+        if (!cancelled) setReceiptCount(rows.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <SectionHeader eyebrow="PAYMENT METHODS" title="How you" italicWord="pay" />
@@ -343,7 +358,7 @@ function PaymentsTab() {
 
       <SectionHeader eyebrow="BILLING" title="Receipts &" italicWord="exports" />
       <Card>
-        <Row icon={<Receipt size={16} color={Colors.amber} weight="regular" />} label="Receipts archive" value="42" />
+        <Row icon={<Receipt size={16} color={Colors.amber} weight="regular" />} label="Receipts archive" value={receiptCount === null ? '—' : String(receiptCount)} />
         <Row icon={<DownloadSimple size={16} color={Colors.amber} weight="regular" />} label="Export statements" last />
       </Card>
     </>
