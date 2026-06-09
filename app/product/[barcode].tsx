@@ -319,7 +319,7 @@ export default function ProductDetailScreen() {
         productName={product.name}
         productPrice={product.price}
         currencyCode={product.currencyCode}
-        onPickList={() => setSheetOpen(false)}
+        barcode={product.barcode}
         onStartNewList={() => setSheetOpen(false)}
       />
     </View>

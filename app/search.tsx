@@ -263,7 +263,7 @@ export default function SearchScreen() {
         productName={sheetProduct?.name ?? ''}
         productPrice={sheetProduct?.price ?? 0}
         currencyCode={sheetProduct?.currencyCode}
-        onPickList={() => setSheetProduct(null)}
+        barcode={sheetProduct?.barcode}
         onStartNewList={() => setSheetProduct(null)}
       />
     </KeyboardAvoidingView>
