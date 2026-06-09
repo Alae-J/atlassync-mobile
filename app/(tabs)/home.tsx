@@ -1,18 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, MapPin, ArrowRight, QrCode, Plus, CaretRight, ShoppingBag, EnvelopeSimple, MagnifyingGlass } from 'phosphor-react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
-import { savedLists, productById } from '../../src/data/catalog';
 import { useAuth } from '../../src/context/AuthContext';
 import { useSession } from '../../src/context/SessionContext';
 import { firstName } from '../../src/lib/userDisplay';
-import { sessionsApi } from '../../src/api';
-import type { CartSnapshot, SessionHistoryItem } from '../../src/types';
+import { listsApi, sessionsApi } from '../../src/api';
+import type { CartSnapshot, SessionHistoryItem, ShoppingListSummary } from '../../src/types';
 import { formatShortDate } from '../../src/lib/receiptDates';
 import { formatPrice } from '../../src/lib/formatPrice';
+import { formatRelativeUpdated } from '../../src/lib/formatRelativeUpdated';
 
 type HeroState = 'default' | 'active';
 
@@ -27,6 +27,28 @@ export default function HomeScreen() {
   useEffect(() => {
     if (isActive) refreshCart().catch(() => undefined);
   }, [isActive, refreshCart]);
+
+  const [lists, setLists] = useState<ShoppingListSummary[]>([]);
+  const [listsLoading, setListsLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setListsLoading(true);
+      listsApi
+        .list()
+        .then((data) => {
+          if (!cancelled) setLists(data.slice(0, 3));
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setListsLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const [recentShops, setRecentShops] = useState<SessionHistoryItem[]>([]);
   useEffect(() => {
@@ -100,50 +122,53 @@ export default function HomeScreen() {
               <CaretRight size={11} color={Colors.muted} weight="bold" />
             </Pressable>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.railRow}
-          >
-            {savedLists.map((list, i) => (
-              <Pressable
-                key={list.id}
-                style={styles.listCard}
-                onPress={() => router.push({ pathname: '/list-editor', params: { id: list.id } })}
-              >
-                {i === 0 ? (
-                  <LinearGradient
-                    colors={[Colors.tile, Colors.tileDeep]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill as never}
-                  />
-                ) : (
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.card }]} />
-                )}
-                <View style={styles.listEmojis}>
-                  {list.items.slice(0, 4).map((id) => (
-                    <View key={id} style={styles.emojiTile}>
-                      <Text style={styles.emojiText}>{productById(id)?.emoji}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={styles.listName}>{list.name}</Text>
-                <Text style={styles.listMeta}>
-                  {list.count} items · {list.lastUsed}
-                </Text>
-              </Pressable>
-            ))}
+          {!listsLoading && lists.length === 0 ? (
             <Pressable
-              style={styles.newListCard}
-              onPress={() => router.push('/list-editor')}
+              style={styles.noListsCta}
+              onPress={() => router.push('/(tabs)/lists')}
             >
-              <View style={styles.newListIcon}>
-                <Plus size={14} color={Colors.ink} weight="bold" />
-              </View>
-              <Text style={styles.newListLabel}>New list</Text>
+              <Text style={styles.noListsText}>No lists yet — create one in Lists</Text>
+              <CaretRight size={13} color={Colors.muted} weight="bold" />
             </Pressable>
-          </ScrollView>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.railRow}
+            >
+              {lists.map((list, i) => (
+                <Pressable
+                  key={list.id}
+                  style={styles.listCard}
+                  onPress={() => router.push({ pathname: '/list-editor', params: { id: String(list.id) } })}
+                >
+                  {i === 0 ? (
+                    <LinearGradient
+                      colors={[Colors.tile, Colors.tileDeep]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill as never}
+                    />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.card }]} />
+                  )}
+                  <Text style={styles.listName}>{list.name}</Text>
+                  <Text style={styles.listMeta}>
+                    {list.itemCount} item{list.itemCount === 1 ? '' : 's'} · {formatRelativeUpdated(list.updatedAt)}
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable
+                style={styles.newListCard}
+                onPress={() => router.push('/(tabs)/lists')}
+              >
+                <View style={styles.newListIcon}>
+                  <Plus size={14} color={Colors.ink} weight="bold" />
+                </View>
+                <Text style={styles.newListLabel}>New list</Text>
+              </Pressable>
+            </ScrollView>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -437,6 +462,19 @@ const styles = StyleSheet.create({
   sectionTitleItalic: { fontFamily: Fonts.serifItalic },
   sectionLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sectionLinkText: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Colors.muted },
+
+  noListsCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.lineFaint,
+  },
+  noListsText: { fontFamily: Fonts.sans, fontSize: 13, color: Colors.muted },
 
   railRow: { gap: 10, paddingRight: 22 },
   listCard: {
