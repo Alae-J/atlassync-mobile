@@ -6,3 +6,4 @@ export { sessionsApi, type StartSessionPayload, type PaySessionPayload } from '.
 export { gateApi, type GateScanPayload } from './gate';
 export { productsApi } from './products';
 export { cartApi, type AddToCartPayload, type HelpRequestPayload } from './cart';
+export { listsApi, type CreateListPayload, type UpdateListPayload } from './lists';

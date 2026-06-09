@@ -53,6 +53,10 @@ export const Endpoints = {
     receipt: (id: string) => `/api/sessions/${id}/receipt`,
     history: '/api/sessions/history',
   },
+  lists: {
+    root: '/api/lists',
+    byId: (id: number) => `/api/lists/${id}`,
+  },
   gate: {
     entry: '/api/gate/entry',
     exit: '/api/gate/exit',
