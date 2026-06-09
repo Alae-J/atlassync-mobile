@@ -7,20 +7,26 @@ import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constants/theme';
 import { savedLists, productById } from '../../src/data/catalog';
 import { useAuth } from '../../src/context/AuthContext';
+import { useSession } from '../../src/context/SessionContext';
 import { firstName } from '../../src/lib/userDisplay';
 import { sessionsApi } from '../../src/api';
-import type { SessionHistoryItem } from '../../src/types';
+import type { CartSnapshot, SessionHistoryItem } from '../../src/types';
 import { formatShortDate } from '../../src/lib/receiptDates';
 import { formatPrice } from '../../src/lib/formatPrice';
 
 type HeroState = 'default' | 'active';
 
-const heroState: HeroState = 'default';
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isActive, cart, refreshCart } = useSession();
   const greetingName = firstName(user);
+  const heroState: HeroState = isActive ? 'active' : 'default';
+  const dateLabel = formatTodayLabel();
+
+  useEffect(() => {
+    if (isActive) refreshCart().catch(() => undefined);
+  }, [isActive, refreshCart]);
 
   const [recentShops, setRecentShops] = useState<SessionHistoryItem[]>([]);
   useEffect(() => {
@@ -55,7 +61,7 @@ export default function HomeScreen() {
       >
         <View style={styles.greetingRow}>
           <View>
-            <Text style={styles.eyebrow}>SATURDAY · 4 MAY</Text>
+            <Text style={styles.eyebrow}>{dateLabel}</Text>
             <Text style={styles.greeting}>
               Hi, <Text style={styles.greetingItalic}>{greetingName}</Text>.
             </Text>
@@ -81,7 +87,7 @@ export default function HomeScreen() {
         {heroState === 'default' ? (
           user?.emailVerified ? <HeroDefault /> : <HeroVerifyEmail email={user?.email ?? null} />
         ) : (
-          <HeroActive />
+          <HeroActive cart={cart} />
         )}
 
         <View style={styles.section}>
@@ -223,7 +229,9 @@ function HeroVerifyEmail({ email }: { email: string | null }) {
   );
 }
 
-function HeroActive() {
+function HeroActive({ cart }: { cart: CartSnapshot | null }) {
+  const itemCount = cart?.itemCount ?? 0;
+  const total = cart?.total ?? 0;
   return (
     <View style={styles.heroActiveWrap}>
       <LinearGradient
@@ -234,18 +242,17 @@ function HeroActive() {
       />
       <Text style={styles.heroActiveEyebrow}>SHOPPING NOW</Text>
       <Text style={styles.heroActiveTitle}>
-        Aldi · <Text style={styles.heroActiveTitleItalic}>Mansoura</Text>
+        Session <Text style={styles.heroActiveTitleItalic}>in progress</Text>
       </Text>
-      <Text style={styles.heroActiveSub}>Started 14 minutes ago</Text>
       <View style={styles.statsRow}>
         <View>
           <Text style={styles.statsLabel}>SCANNED</Text>
-          <Text style={styles.statsValue}>7 items</Text>
+          <Text style={styles.statsValue}>{itemCount} {itemCount === 1 ? 'item' : 'items'}</Text>
         </View>
         <View style={styles.statsDivider} />
         <View>
           <Text style={styles.statsLabel}>RUNNING</Text>
-          <Text style={styles.statsValue}>$23.40</Text>
+          <Text style={styles.statsValue}>{formatPrice(total)}</Text>
         </View>
       </View>
       <Pressable style={styles.resumeBtn} onPress={() => router.push('/shop/scan')}>
@@ -254,6 +261,14 @@ function HeroActive() {
       </Pressable>
     </View>
   );
+}
+
+function formatTodayLabel(): string {
+  const now = new Date();
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  const day = now.getDate();
+  const month = now.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  return `${weekday} · ${day} ${month}`;
 }
 
 const styles = StyleSheet.create({

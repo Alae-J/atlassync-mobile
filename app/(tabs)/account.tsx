@@ -277,25 +277,18 @@ function ProfileTab() {
 
       <SectionHeader eyebrow="DIET" title="Tastes &" italicWord="dislikes" />
       <View style={styles.chipCard}>
-        {[
-          { label: 'Halal', active: true },
-          { label: 'No pork', active: true },
-          { label: 'Low sugar', active: true },
-          { label: 'No alcohol', active: true },
-          { label: 'Vegetarian', active: false },
-          { label: 'Gluten-free', active: false },
-          { label: '+ Manage', active: false },
-        ].map((chip) => (
-          <View
-            key={chip.label}
-            style={[styles.chip, chip.active ? styles.chipActive : styles.chipInactive]}
-          >
-            {chip.active && <Text style={styles.chipCheck}>✓</Text>}
-            <Text style={[styles.chipText, chip.active ? styles.chipTextActive : styles.chipTextInactive]}>
-              {chip.label}
-            </Text>
+        {(user?.preferences?.dietaryPrefs ?? []).map((label) => (
+          <View key={label} style={[styles.chip, styles.chipActive]}>
+            <Text style={styles.chipCheck}>✓</Text>
+            <Text style={[styles.chipText, styles.chipTextActive]}>{label}</Text>
           </View>
         ))}
+        <Pressable
+          style={[styles.chip, styles.chipInactive]}
+          onPress={() => router.push('/account/dietary')}
+        >
+          <Text style={[styles.chipText, styles.chipTextInactive]}>+ Manage</Text>
+        </Pressable>
       </View>
 
       <View style={[styles.section, { paddingTop: 28 }]}>
