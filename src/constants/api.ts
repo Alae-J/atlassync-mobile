@@ -68,4 +68,7 @@ export const Endpoints = {
     help: (sessionId: string) => `/api/cart/${sessionId}/help`,
     clear: (sessionId: string) => `/api/cart/${sessionId}`,
   },
+  analytics: {
+    monthlySpend: '/api/analytics/me/monthly-spend',
+  },
 } as const;
