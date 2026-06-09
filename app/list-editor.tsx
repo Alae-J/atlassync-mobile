@@ -1,26 +1,22 @@
-import { useMemo, useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, Modal, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { View, Text, TextInput, ScrollView, Pressable, Modal, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, DotsThreeVertical, Plus, Minus, MagnifyingGlass, X, PencilSimple, Trash } from 'phosphor-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../src/constants/theme';
 import { TabBar } from '../src/components/TabBar';
-import { products, productById, productTags, savedLists, type Product } from '../src/data/catalog';
+import { listsApi, productsApi } from '../src/api';
+import { toDisplayProduct, type DisplayProduct } from '../src/lib/productDisplay';
 import { formatPrice } from '../src/lib/formatPrice';
 
 interface ListItem {
-  id: string;
+  barcode: string;
+  product: DisplayProduct;
   qty: number;
 }
 
-const FALLBACK_ITEMS: ListItem[] = [
-  { id: 'banana', qty: 2 },
-  { id: 'milk', qty: 1 },
-  { id: 'avocado', qty: 4 },
-  { id: 'chicken', qty: 1 },
-  { id: 'olive-oil', qty: 1 },
-];
+const SEARCH_DEBOUNCE_MS = 300;
 
 type EditorOrigin = 'shop-arrive' | 'lists';
 
@@ -29,54 +25,110 @@ export default function ListEditorScreen() {
   const params = useLocalSearchParams<{ id?: string; from?: string }>();
   const origin: EditorOrigin = params.from === 'shop-arrive' ? 'shop-arrive' : 'lists';
 
-  const sourceList = useMemo(
-    () => (params.id ? savedLists.find((l) => l.id === params.id) : undefined),
-    [params.id],
-  );
+  const listId = useMemo(() => {
+    if (!params.id) return null;
+    const n = Number(params.id);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [params.id]);
 
-  const initialItems = useMemo<ListItem[]>(() => {
-    if (sourceList) return sourceList.items.map((id) => ({ id, qty: 1 }));
-    return params.id ? [] : FALLBACK_ITEMS;
-  }, [sourceList, params.id]);
+  // Redirect back if there's no valid numeric id
+  useEffect(() => {
+    if (params.id !== undefined && listId === null) {
+      router.replace('/(tabs)/lists');
+    }
+  }, [listId, params.id]);
 
-  const heroTitle = sourceList?.name ?? (params.id ? 'New list' : 'Saturday haul');
+  const [items, setItems] = useState<ListItem[]>([]);
+  const [name, setName] = useState('New list');
+  const [loadingList, setLoadingList] = useState(!!listId);
 
-  const [items, setItems] = useState<ListItem[]>(initialItems);
-  const [name, setName] = useState(heroTitle);
   const [browseOpen, setBrowseOpen] = useState(false);
-  const [qtyTarget, setQtyTarget] = useState<string | null>(null);
+  const [qtyTarget, setQtyTarget] = useState<DisplayProduct | null>(null);
   const [pendingQty, setPendingQty] = useState(1);
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<DisplayProduct[]>([]);
+  const [searching, setSearching] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameDraft, setRenameDraft] = useState(heroTitle);
+  const [renameDraft, setRenameDraft] = useState('New list');
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load existing list on mount
+  useEffect(() => {
+    if (!listId) return;
+    let cancelled = false;
+    setLoadingList(true);
+
+    (async () => {
+      try {
+        const detail = await listsApi.get(listId);
+        if (cancelled) return;
+
+        setName(detail.name);
+        setRenameDraft(detail.name);
+
+        if (detail.items.length === 0) {
+          setItems([]);
+          setLoadingList(false);
+          return;
+        }
+
+        const barcodes = detail.items.map((i) => i.barcode);
+        const products = await productsApi.batch(barcodes);
+        if (cancelled) return;
+
+        const productMap = new Map(products.map((p) => [p.barcode, p]));
+
+        const enriched: ListItem[] = detail.items
+          .map((item) => {
+            const product = productMap.get(item.barcode);
+            if (!product) return null; // barcode no longer in catalog — skip silently
+            return { barcode: item.barcode, product: toDisplayProduct(product), qty: item.qty };
+          })
+          .filter((it): it is ListItem => it !== null);
+
+        setItems(enriched);
+      } catch {
+        // Failed to load — leave empty, user can still add items
+      } finally {
+        if (!cancelled) setLoadingList(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [listId]);
 
   const exit = () => {
     if (origin === 'shop-arrive') router.replace('/shop/arrive');
     else router.replace('/(tabs)/lists');
   };
 
-  const totalEst = items.reduce((sum, it) => sum + (productById(it.id)?.price ?? 0) * it.qty, 0);
+  const totalEst = items.reduce((sum, it) => sum + it.product.price * it.qty, 0);
 
-  const addItem = (id: string, qty: number) => {
+  const addItem = (product: DisplayProduct, qty: number) => {
     setItems((prev) => {
-      const existing = prev.find((x) => x.id === id);
-      if (existing) return prev.map((x) => (x.id === id ? { ...x, qty: x.qty + qty } : x));
-      return [...prev, { id, qty }];
+      const existing = prev.find((x) => x.barcode === product.barcode);
+      if (existing) {
+        return prev.map((x) =>
+          x.barcode === product.barcode ? { ...x, qty: x.qty + qty } : x,
+        );
+      }
+      return [...prev, { barcode: product.barcode, product, qty }];
     });
   };
 
-  const updateQty = (id: string, delta: number) => {
+  const updateQty = (barcode: string, delta: number) => {
     setItems((prev) =>
       prev
-        .map((x) => (x.id === id ? { ...x, qty: Math.max(0, x.qty + delta) } : x))
+        .map((x) => (x.barcode === barcode ? { ...x, qty: Math.max(0, x.qty + delta) } : x))
         .filter((x) => x.qty > 0),
     );
   };
 
-  const openQtyModal = (id: string) => {
-    setQtyTarget(id);
+  const openQtyModal = (product: DisplayProduct) => {
+    setQtyTarget(product);
     setPendingQty(1);
     setBrowseOpen(false);
   };
@@ -86,13 +138,80 @@ export default function ListEditorScreen() {
     setQtyTarget(null);
   };
 
-  const filteredProducts = (
-    query
-      ? products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
-      : products
-  ).filter((p) => !items.find((it) => it.id === p.id));
+  const handleSave = async () => {
+    if (!listId || saving) return;
+    setSaving(true);
+    try {
+      await listsApi.update(listId, {
+        items: items.map((it) => ({ barcode: it.barcode, qty: it.qty })),
+      });
+      exit();
+    } catch {
+      setSaving(false);
+    }
+  };
 
-  const qtyProduct = qtyTarget ? productById(qtyTarget) : null;
+  const handleRenameConfirm = async () => {
+    const trimmed = renameDraft.trim();
+    if (!trimmed) return;
+    setRenameError(null);
+
+    setName(trimmed);
+    setRenameOpen(false);
+
+    if (!listId) return;
+    try {
+      await listsApi.update(listId, { name: trimmed });
+    } catch {
+      setRenameError('Could not save name. Try again.');
+      // Revert to previous name on failure
+      setName(name);
+    }
+  };
+
+  const handleDelete = async () => {
+    setConfirmDelete(false);
+    if (!listId) { exit(); return; }
+    try {
+      await listsApi.remove(listId);
+    } catch {
+      // Even on error, navigate away — the list will still exist on backend
+    }
+    exit();
+  };
+
+  useEffect(() => {
+    if (!browseOpen) return;
+    const trimmed = query.trim();
+    let cancelled = false;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const raw = await productsApi.search({ query: trimmed || undefined, limit: 20 });
+        if (!cancelled) setResults(raw.map(toDisplayProduct));
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query, browseOpen]);
+
+  const filteredResults = results.filter(
+    (p) => !items.find((it) => it.barcode === p.barcode),
+  );
+
+  if (loadingList) {
+    return (
+      <View style={[styles.root, styles.loadingRoot]}>
+        <ActivityIndicator color={Colors.amber} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -141,35 +260,33 @@ export default function ListEditorScreen() {
           <Text style={styles.emptyText}>Empty. Tap "Add items" above to start.</Text>
         )}
 
-        {items.map((it) => {
-          const p = productById(it.id);
-          if (!p) return null;
-          return (
-            <View key={it.id} style={styles.itemRow}>
-              <View style={styles.itemThumb}>
-                <Text style={styles.itemEmoji}>{p.emoji}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemName} numberOfLines={1}>{p.name}</Text>
-                <View style={styles.itemMetaRow}>
+        {items.map((it) => (
+          <View key={it.barcode} style={styles.itemRow}>
+            <View style={styles.itemThumb}>
+              <Text style={styles.itemEmoji}>{it.product.emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.itemName} numberOfLines={1}>{it.product.name}</Text>
+              <View style={styles.itemMetaRow}>
+                {it.product.brand && (
                   <View style={styles.tagPill}>
-                    <Text style={styles.tagPillText}>{p.tag}</Text>
+                    <Text style={styles.tagPillText}>{it.product.brand}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>{formatPrice(p.price * it.qty)}</Text>
-                </View>
-              </View>
-              <View style={styles.stepper}>
-                <Pressable style={styles.stepperBtn} onPress={() => updateQty(it.id, -1)}>
-                  <Minus size={12} color={Colors.ink} weight="bold" />
-                </Pressable>
-                <Text style={styles.stepperQty}>{it.qty}</Text>
-                <Pressable style={styles.stepperBtnFilled} onPress={() => updateQty(it.id, 1)}>
-                  <Plus size={12} color={Colors.cream} weight="bold" />
-                </Pressable>
+                )}
+                <Text style={styles.itemPrice}>{formatPrice(it.product.price * it.qty)}</Text>
               </View>
             </View>
-          );
-        })}
+            <View style={styles.stepper}>
+              <Pressable style={styles.stepperBtn} onPress={() => updateQty(it.barcode, -1)}>
+                <Minus size={12} color={Colors.ink} weight="bold" />
+              </Pressable>
+              <Text style={styles.stepperQty}>{it.qty}</Text>
+              <Pressable style={styles.stepperBtnFilled} onPress={() => updateQty(it.barcode, 1)}>
+                <Plus size={12} color={Colors.cream} weight="bold" />
+              </Pressable>
+            </View>
+          </View>
+        ))}
       </ScrollView>
 
       {items.length > 0 && (
@@ -178,15 +295,21 @@ export default function ListEditorScreen() {
             <Text style={styles.totalLabel}>TOTAL</Text>
             <Text style={styles.totalAmount}>{formatPrice(totalEst)}</Text>
           </View>
-          <Pressable style={styles.saveBtn} onPress={exit}>
-            <Text style={styles.saveBtnText}>Save & go</Text>
-            <ArrowRight size={14} color={Colors.ink} weight="bold" />
+          <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={handleSave} disabled={saving}>
+            {saving
+              ? <ActivityIndicator size="small" color={Colors.ink} />
+              : <>
+                  <Text style={styles.saveBtnText}>Save & go</Text>
+                  <ArrowRight size={14} color={Colors.ink} weight="bold" />
+                </>
+            }
           </Pressable>
         </View>
       )}
 
       <TabBar active="lists" />
 
+      {/* Browse / Add Items sheet */}
       <Modal
         visible={browseOpen}
         transparent
@@ -218,33 +341,34 @@ export default function ListEditorScreen() {
                 autoFocus
               />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagRow}>
-              {productTags.map((t) => (
-                <Pressable key={t} style={styles.tagChip}>
-                  <Text style={styles.tagChipText}>{t}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.searchResults} showsVerticalScrollIndicator={false}>
-              {filteredProducts.map((p) => (
-                <ProductPickRow key={p.id} product={p} onPress={() => openQtyModal(p.id)} />
-              ))}
-              {filteredProducts.length === 0 && (
-                <Text style={styles.noMatch}>Nothing matches "{query}".</Text>
+              {searching && filteredResults.length === 0 ? (
+                <View style={styles.searchLoadingRow}>
+                  <ActivityIndicator color={Colors.amber} />
+                </View>
+              ) : filteredResults.length === 0 ? (
+                <Text style={styles.noMatch}>
+                  {query.trim() ? `Nothing matches "${query}".` : 'Start typing to find products.'}
+                </Text>
+              ) : (
+                filteredResults.map((p) => (
+                  <ProductPickRow key={p.barcode} product={p} onPress={() => openQtyModal(p)} />
+                ))
               )}
             </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
 
+      {/* Qty picker sheet */}
       <Modal
-        visible={!!qtyTarget && !!qtyProduct}
+        visible={!!qtyTarget}
         transparent
         animationType="slide"
         onRequestClose={() => setQtyTarget(null)}
       >
         <Pressable style={styles.scrim} onPress={() => setQtyTarget(null)}>
-          {qtyProduct && (
+          {qtyTarget && (
             <Pressable
               style={[styles.sheet, styles.qtySheet, { paddingBottom: insets.bottom + 24 }]}
               onPress={(e) => e.stopPropagation()}
@@ -252,12 +376,13 @@ export default function ListEditorScreen() {
               <View style={styles.handle} />
               <View style={styles.qtyHeader}>
                 <View style={styles.qtyThumb}>
-                  <Text style={styles.qtyEmoji}>{qtyProduct.emoji}</Text>
+                  <Text style={styles.qtyEmoji}>{qtyTarget.emoji}</Text>
                 </View>
                 <View>
-                  <Text style={styles.qtyName}>{qtyProduct.name}</Text>
+                  <Text style={styles.qtyName}>{qtyTarget.name}</Text>
                   <Text style={styles.qtyMeta}>
-                    {formatPrice(qtyProduct.price)} per {qtyProduct.unit} · {qtyProduct.tag}
+                    {formatPrice(qtyTarget.price)} per {qtyTarget.unit}
+                    {qtyTarget.brand ? ` · ${qtyTarget.brand}` : ''}
                   </Text>
                 </View>
               </View>
@@ -270,7 +395,7 @@ export default function ListEditorScreen() {
                 </Pressable>
                 <View style={styles.qtyValueRow}>
                   <Text style={styles.qtyValue}>{pendingQty}</Text>
-                  <Text style={styles.qtyUnit}>{qtyProduct.unit}</Text>
+                  <Text style={styles.qtyUnit}>{qtyTarget.unit}</Text>
                 </View>
                 <Pressable
                   style={[styles.qtyCircleBtn, styles.qtyCircleBtnFilled]}
@@ -282,7 +407,7 @@ export default function ListEditorScreen() {
               <View style={styles.qtySubtotal}>
                 <Text style={styles.qtySubtotalLabel}>Subtotal</Text>
                 <Text style={styles.qtySubtotalValue}>
-                  {formatPrice(qtyProduct.price * pendingQty)}
+                  {formatPrice(qtyTarget.price * pendingQty)}
                 </Text>
               </View>
               <Pressable style={styles.confirmBtn} onPress={confirmQty}>
@@ -293,6 +418,7 @@ export default function ListEditorScreen() {
         </Pressable>
       </Modal>
 
+      {/* Menu sheet */}
       <Modal
         visible={menuOpen}
         transparent
@@ -310,6 +436,7 @@ export default function ListEditorScreen() {
               onPress={() => {
                 setMenuOpen(false);
                 setRenameDraft(name);
+                setRenameError(null);
                 setRenameOpen(true);
               }}
             >
@@ -334,6 +461,7 @@ export default function ListEditorScreen() {
         </Pressable>
       </Modal>
 
+      {/* Rename sheet */}
       <Modal
         visible={renameOpen}
         transparent
@@ -358,16 +486,16 @@ export default function ListEditorScreen() {
               autoFocus
               maxLength={48}
             />
+            {renameError && (
+              <Text style={styles.renameError}>{renameError}</Text>
+            )}
             <View style={styles.alertActions}>
               <Pressable style={styles.alertBtnGhost} onPress={() => setRenameOpen(false)}>
                 <Text style={styles.alertBtnGhostText}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={styles.alertBtnPrimary}
-                onPress={() => {
-                  if (renameDraft.trim()) setName(renameDraft.trim());
-                  setRenameOpen(false);
-                }}
+                onPress={handleRenameConfirm}
               >
                 <Text style={styles.alertBtnPrimaryText}>Save</Text>
               </Pressable>
@@ -376,6 +504,7 @@ export default function ListEditorScreen() {
         </Pressable>
       </Modal>
 
+      {/* Delete confirmation sheet */}
       <Modal
         visible={confirmDelete}
         transparent
@@ -400,10 +529,7 @@ export default function ListEditorScreen() {
               </Pressable>
               <Pressable
                 style={styles.alertBtnDanger}
-                onPress={() => {
-                  setConfirmDelete(false);
-                  exit();
-                }}
+                onPress={handleDelete}
               >
                 <Text style={styles.alertBtnDangerText}>Delete</Text>
               </Pressable>
@@ -415,7 +541,7 @@ export default function ListEditorScreen() {
   );
 }
 
-function ProductPickRow({ product, onPress }: { product: Product; onPress: () => void }) {
+function ProductPickRow({ product, onPress }: { product: DisplayProduct; onPress: () => void }) {
   return (
     <Pressable style={styles.pickRow} onPress={onPress}>
       <View style={styles.pickThumb}>
@@ -424,7 +550,7 @@ function ProductPickRow({ product, onPress }: { product: Product; onPress: () =>
       <View style={{ flex: 1 }}>
         <Text style={styles.pickName}>{product.name}</Text>
         <Text style={styles.pickMeta}>
-          {product.tag} · {formatPrice(product.price)}/{product.unit}
+          {product.brand ? `${product.brand} · ` : ''}{formatPrice(product.price)}/{product.unit}
         </Text>
       </View>
       <View style={styles.pickAddBtn}>
@@ -436,6 +562,7 @@ function ProductPickRow({ product, onPress }: { product: Product; onPress: () =>
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.cream },
+  loadingRoot: { alignItems: 'center', justifyContent: 'center' },
   bgWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 320 },
 
   header: { paddingHorizontal: 24, paddingBottom: 12 },
@@ -604,8 +731,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minWidth: 110,
+    justifyContent: 'center',
     ...Shadows.amberCta,
   },
+  saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontFamily: Fonts.sansSemibold, fontSize: 13, color: Colors.ink },
 
   scrim: { flex: 1, backgroundColor: Colors.scrim, justifyContent: 'flex-end' },
@@ -705,6 +835,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     fontSize: 13,
     color: Colors.muted,
+  },
+  searchLoadingRow: {
+    paddingVertical: 30,
+    alignItems: 'center',
   },
 
   qtyHeader: {
@@ -835,7 +969,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     fontSize: 15,
     color: Colors.ink,
-    marginBottom: 18,
+    marginBottom: 10,
+  },
+  renameError: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: Colors.danger,
+    marginBottom: 10,
   },
   alertActions: { flexDirection: 'row', gap: 8 },
   alertBtnGhost: {

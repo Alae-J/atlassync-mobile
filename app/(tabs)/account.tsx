@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
+import { sessionsApi } from '../../src/api';
 import {
   CaretRight,
   User as UserIcon,
@@ -277,25 +278,18 @@ function ProfileTab() {
 
       <SectionHeader eyebrow="DIET" title="Tastes &" italicWord="dislikes" />
       <View style={styles.chipCard}>
-        {[
-          { label: 'Halal', active: true },
-          { label: 'No pork', active: true },
-          { label: 'Low sugar', active: true },
-          { label: 'No alcohol', active: true },
-          { label: 'Vegetarian', active: false },
-          { label: 'Gluten-free', active: false },
-          { label: '+ Manage', active: false },
-        ].map((chip) => (
-          <View
-            key={chip.label}
-            style={[styles.chip, chip.active ? styles.chipActive : styles.chipInactive]}
-          >
-            {chip.active && <Text style={styles.chipCheck}>✓</Text>}
-            <Text style={[styles.chipText, chip.active ? styles.chipTextActive : styles.chipTextInactive]}>
-              {chip.label}
-            </Text>
+        {(user?.preferences?.dietaryPrefs ?? []).map((label) => (
+          <View key={label} style={[styles.chip, styles.chipActive]}>
+            <Text style={styles.chipCheck}>✓</Text>
+            <Text style={[styles.chipText, styles.chipTextActive]}>{label}</Text>
           </View>
         ))}
+        <Pressable
+          style={[styles.chip, styles.chipInactive]}
+          onPress={() => router.push('/account/dietary')}
+        >
+          <Text style={[styles.chipText, styles.chipTextInactive]}>+ Manage</Text>
+        </Pressable>
       </View>
 
       <View style={[styles.section, { paddingTop: 28 }]}>
@@ -308,6 +302,20 @@ function ProfileTab() {
 }
 
 function PaymentsTab() {
+  const [receiptCount, setReceiptCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    sessionsApi
+      .history(100)
+      .then((rows) => {
+        if (!cancelled) setReceiptCount(rows.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <SectionHeader eyebrow="PAYMENT METHODS" title="How you" italicWord="pay" />
@@ -350,7 +358,7 @@ function PaymentsTab() {
 
       <SectionHeader eyebrow="BILLING" title="Receipts &" italicWord="exports" />
       <Card>
-        <Row icon={<Receipt size={16} color={Colors.amber} weight="regular" />} label="Receipts archive" value="42" />
+        <Row icon={<Receipt size={16} color={Colors.amber} weight="regular" />} label="Receipts archive" value={receiptCount === null ? '—' : String(receiptCount)} />
         <Row icon={<DownloadSimple size={16} color={Colors.amber} weight="regular" />} label="Export statements" last />
       </Card>
     </>

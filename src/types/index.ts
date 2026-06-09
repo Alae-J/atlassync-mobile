@@ -149,3 +149,25 @@ export interface SessionHistoryItem {
   totalAmount: number | null;
   itemCount: number | null;
 }
+
+/** Shopping lists */
+export interface ShoppingListItem {
+  barcode: string;
+  qty: number;
+}
+
+export interface ShoppingListSummary {
+  id: number;
+  name: string;
+  itemCount: number;
+  totalEstimate: number | null;
+  updatedAt: string;
+}
+
+export interface ShoppingListDetail {
+  id: number;
+  name: string;
+  items: ShoppingListItem[];
+  createdAt: string;
+  updatedAt: string;
+}

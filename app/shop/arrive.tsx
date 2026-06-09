@@ -1,20 +1,41 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, Plus, Camera } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
-import { savedLists, productById } from '../../src/data/catalog';
 import { useSession } from '../../src/context/SessionContext';
-import { gateApi } from '../../src/api';
+import { gateApi, listsApi } from '../../src/api';
 import { formatPrice } from '../../src/lib/formatPrice';
+import type { ShoppingListSummary } from '../../src/types';
 
 export default function ArriveScreen() {
   const insets = useSafeAreaInsets();
   const { startSession, isStarting } = useSession();
-  const [selected, setSelected] = useState<string>(savedLists[0].id);
+  const [lists, setLists] = useState<ShoppingListSummary[]>([]);
+  const [listsLoading, setListsLoading] = useState(true);
+  const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listsApi
+      .list()
+      .then((data) => {
+        if (!cancelled) {
+          setLists(data);
+          setSelected(data[0]?.id ?? null);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setListsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const beginScanning = async () => {
     if (isStarting) return;
@@ -65,42 +86,36 @@ export default function ArriveScreen() {
       >
         <Text style={styles.sectionLabel}>HOW DO YOU WANT TO SHOP?</Text>
 
-        {savedLists.map((list) => {
-          const total = list.items.reduce((sum, id) => sum + (productById(id)?.price ?? 0), 0);
-          const isSelected = selected === list.id;
-          return (
-            <Pressable
-              key={list.id}
-              onPress={() => setSelected(list.id)}
-              style={[styles.listOption, isSelected && styles.listOptionSelected]}
-            >
-              <View style={[styles.radio, isSelected && styles.radioSelected]} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.listName}>{list.name}</Text>
-                <View style={styles.listMetaRow}>
-                  <Text style={styles.listMeta}>{list.items.length} items</Text>
-                  <Text style={styles.listMetaDot}>·</Text>
-                  <Text style={styles.listMeta}>~{formatPrice(total)}</Text>
-                  <Text style={styles.listMetaDot}>·</Text>
-                  <Text style={styles.listMeta}>used {list.lastUsed}</Text>
-                </View>
-              </View>
-              <View style={styles.previewEmojis}>
-                {list.items.slice(0, 3).map((id) => (
-                  <View key={id} style={styles.previewEmoji}>
-                    <LinearGradient
-                      colors={[Colors.tile, Colors.tileDeep]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={StyleSheet.absoluteFill as never}
-                    />
-                    <Text style={styles.previewEmojiText}>{productById(id)?.emoji}</Text>
+        {listsLoading ? (
+          <ActivityIndicator color={Colors.amber} style={{ marginVertical: 16 }} />
+        ) : lists.length === 0 ? (
+          <Text style={styles.noListsHint}>No saved lists — pick an option below to start shopping.</Text>
+        ) : (
+          lists.map((list) => {
+            const isSelected = selected === list.id;
+            return (
+              <Pressable
+                key={list.id}
+                onPress={() => setSelected(list.id)}
+                style={[styles.listOption, isSelected && styles.listOptionSelected]}
+              >
+                <View style={[styles.radio, isSelected && styles.radioSelected]} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.listName}>{list.name}</Text>
+                  <View style={styles.listMetaRow}>
+                    <Text style={styles.listMeta}>{list.itemCount} item{list.itemCount === 1 ? '' : 's'}</Text>
+                    {list.totalEstimate != null && (
+                      <>
+                        <Text style={styles.listMetaDot}>·</Text>
+                        <Text style={styles.listMeta}>~{formatPrice(list.totalEstimate)}</Text>
+                      </>
+                    )}
                   </View>
-                ))}
-              </View>
-            </Pressable>
-          );
-        })}
+                </View>
+              </Pressable>
+            );
+          })
+        )}
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
@@ -238,16 +253,13 @@ const styles = StyleSheet.create({
   listMetaRow: { flexDirection: 'row', gap: 6, marginTop: 3, flexWrap: 'wrap' },
   listMeta: { fontFamily: Fonts.sans, fontSize: 11.5, color: Colors.muted },
   listMetaDot: { color: Colors.muted, opacity: 0.5 },
-  previewEmojis: { flexDirection: 'row', gap: 2 },
-  previewEmoji: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+  noListsHint: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: Colors.muted,
+    paddingVertical: 12,
+    lineHeight: 18,
   },
-  previewEmojiText: { fontSize: 14 },
 
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
   dividerLine: { flex: 1, height: 1, backgroundColor: Colors.line },
