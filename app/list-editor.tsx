@@ -1,26 +1,56 @@
-import { useMemo, useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, Modal, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { View, Text, TextInput, ScrollView, Pressable, Modal, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, DotsThreeVertical, Plus, Minus, MagnifyingGlass, X, PencilSimple, Trash } from 'phosphor-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../src/constants/theme';
 import { TabBar } from '../src/components/TabBar';
-import { products, productById, productTags, savedLists, type Product } from '../src/data/catalog';
+import { productById, savedLists, type Product as CatalogProduct } from '../src/data/catalog';
+import { productsApi } from '../src/api';
+import { toDisplayProduct, type DisplayProduct } from '../src/lib/productDisplay';
 import { formatPrice } from '../src/lib/formatPrice';
 
 interface ListItem {
-  id: string;
+  barcode: string;
+  product: DisplayProduct;
   qty: number;
 }
 
-const FALLBACK_ITEMS: ListItem[] = [
+// Synthesise a DisplayProduct from the hardcoded catalog mock so saved-list /
+// fallback items render with the same shape as live search results. Once the
+// saved-lists feature is backend-backed, this can go.
+function catalogToDisplay(p: CatalogProduct): DisplayProduct {
+  return {
+    id: 0,
+    barcode: `catalog:${p.id}`,
+    name: p.name,
+    brand: p.tag,
+    price: p.price,
+    currencyCode: 'MAD',
+    unit: p.unit,
+    emoji: p.emoji,
+    aisle: null,
+    nutriscore: null,
+    inStock: true,
+    dietary: [],
+    allergens: [],
+    nutrition: null,
+    ingredients: '',
+    about: null,
+    rfidSecurityRequired: false,
+  };
+}
+
+const FALLBACK_CATALOG_IDS: Array<{ id: string; qty: number }> = [
   { id: 'banana', qty: 2 },
   { id: 'milk', qty: 1 },
   { id: 'avocado', qty: 4 },
   { id: 'chicken', qty: 1 },
   { id: 'olive-oil', qty: 1 },
 ];
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 type EditorOrigin = 'shop-arrive' | 'lists';
 
@@ -35,8 +65,19 @@ export default function ListEditorScreen() {
   );
 
   const initialItems = useMemo<ListItem[]>(() => {
-    if (sourceList) return sourceList.items.map((id) => ({ id, qty: 1 }));
-    return params.id ? [] : FALLBACK_ITEMS;
+    if (sourceList) {
+      return sourceList.items
+        .map((id) => productById(id))
+        .filter((p): p is CatalogProduct => !!p)
+        .map((p) => ({ barcode: `catalog:${p.id}`, product: catalogToDisplay(p), qty: 1 }));
+    }
+    if (params.id) return [];
+    return FALLBACK_CATALOG_IDS
+      .map(({ id, qty }) => {
+        const p = productById(id);
+        return p ? { barcode: `catalog:${p.id}`, product: catalogToDisplay(p), qty } : null;
+      })
+      .filter((it): it is ListItem => !!it);
   }, [sourceList, params.id]);
 
   const heroTitle = sourceList?.name ?? (params.id ? 'New list' : 'Saturday haul');
@@ -44,9 +85,11 @@ export default function ListEditorScreen() {
   const [items, setItems] = useState<ListItem[]>(initialItems);
   const [name, setName] = useState(heroTitle);
   const [browseOpen, setBrowseOpen] = useState(false);
-  const [qtyTarget, setQtyTarget] = useState<string | null>(null);
+  const [qtyTarget, setQtyTarget] = useState<DisplayProduct | null>(null);
   const [pendingQty, setPendingQty] = useState(1);
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<DisplayProduct[]>([]);
+  const [searching, setSearching] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState(heroTitle);
@@ -57,26 +100,30 @@ export default function ListEditorScreen() {
     else router.replace('/(tabs)/lists');
   };
 
-  const totalEst = items.reduce((sum, it) => sum + (productById(it.id)?.price ?? 0) * it.qty, 0);
+  const totalEst = items.reduce((sum, it) => sum + it.product.price * it.qty, 0);
 
-  const addItem = (id: string, qty: number) => {
+  const addItem = (product: DisplayProduct, qty: number) => {
     setItems((prev) => {
-      const existing = prev.find((x) => x.id === id);
-      if (existing) return prev.map((x) => (x.id === id ? { ...x, qty: x.qty + qty } : x));
-      return [...prev, { id, qty }];
+      const existing = prev.find((x) => x.barcode === product.barcode);
+      if (existing) {
+        return prev.map((x) =>
+          x.barcode === product.barcode ? { ...x, qty: x.qty + qty } : x,
+        );
+      }
+      return [...prev, { barcode: product.barcode, product, qty }];
     });
   };
 
-  const updateQty = (id: string, delta: number) => {
+  const updateQty = (barcode: string, delta: number) => {
     setItems((prev) =>
       prev
-        .map((x) => (x.id === id ? { ...x, qty: Math.max(0, x.qty + delta) } : x))
+        .map((x) => (x.barcode === barcode ? { ...x, qty: Math.max(0, x.qty + delta) } : x))
         .filter((x) => x.qty > 0),
     );
   };
 
-  const openQtyModal = (id: string) => {
-    setQtyTarget(id);
+  const openQtyModal = (product: DisplayProduct) => {
+    setQtyTarget(product);
     setPendingQty(1);
     setBrowseOpen(false);
   };
@@ -86,13 +133,30 @@ export default function ListEditorScreen() {
     setQtyTarget(null);
   };
 
-  const filteredProducts = (
-    query
-      ? products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
-      : products
-  ).filter((p) => !items.find((it) => it.id === p.id));
+  useEffect(() => {
+    if (!browseOpen) return;
+    const trimmed = query.trim();
+    let cancelled = false;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const raw = await productsApi.search({ query: trimmed || undefined, limit: 20 });
+        if (!cancelled) setResults(raw.map(toDisplayProduct));
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query, browseOpen]);
 
-  const qtyProduct = qtyTarget ? productById(qtyTarget) : null;
+  const filteredResults = results.filter(
+    (p) => !items.find((it) => it.barcode === p.barcode),
+  );
 
   return (
     <View style={styles.root}>
@@ -141,35 +205,33 @@ export default function ListEditorScreen() {
           <Text style={styles.emptyText}>Empty. Tap "Add items" above to start.</Text>
         )}
 
-        {items.map((it) => {
-          const p = productById(it.id);
-          if (!p) return null;
-          return (
-            <View key={it.id} style={styles.itemRow}>
-              <View style={styles.itemThumb}>
-                <Text style={styles.itemEmoji}>{p.emoji}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemName} numberOfLines={1}>{p.name}</Text>
-                <View style={styles.itemMetaRow}>
+        {items.map((it) => (
+          <View key={it.barcode} style={styles.itemRow}>
+            <View style={styles.itemThumb}>
+              <Text style={styles.itemEmoji}>{it.product.emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.itemName} numberOfLines={1}>{it.product.name}</Text>
+              <View style={styles.itemMetaRow}>
+                {it.product.brand && (
                   <View style={styles.tagPill}>
-                    <Text style={styles.tagPillText}>{p.tag}</Text>
+                    <Text style={styles.tagPillText}>{it.product.brand}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>{formatPrice(p.price * it.qty)}</Text>
-                </View>
-              </View>
-              <View style={styles.stepper}>
-                <Pressable style={styles.stepperBtn} onPress={() => updateQty(it.id, -1)}>
-                  <Minus size={12} color={Colors.ink} weight="bold" />
-                </Pressable>
-                <Text style={styles.stepperQty}>{it.qty}</Text>
-                <Pressable style={styles.stepperBtnFilled} onPress={() => updateQty(it.id, 1)}>
-                  <Plus size={12} color={Colors.cream} weight="bold" />
-                </Pressable>
+                )}
+                <Text style={styles.itemPrice}>{formatPrice(it.product.price * it.qty)}</Text>
               </View>
             </View>
-          );
-        })}
+            <View style={styles.stepper}>
+              <Pressable style={styles.stepperBtn} onPress={() => updateQty(it.barcode, -1)}>
+                <Minus size={12} color={Colors.ink} weight="bold" />
+              </Pressable>
+              <Text style={styles.stepperQty}>{it.qty}</Text>
+              <Pressable style={styles.stepperBtnFilled} onPress={() => updateQty(it.barcode, 1)}>
+                <Plus size={12} color={Colors.cream} weight="bold" />
+              </Pressable>
+            </View>
+          </View>
+        ))}
       </ScrollView>
 
       {items.length > 0 && (
@@ -218,19 +280,19 @@ export default function ListEditorScreen() {
                 autoFocus
               />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagRow}>
-              {productTags.map((t) => (
-                <Pressable key={t} style={styles.tagChip}>
-                  <Text style={styles.tagChipText}>{t}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.searchResults} showsVerticalScrollIndicator={false}>
-              {filteredProducts.map((p) => (
-                <ProductPickRow key={p.id} product={p} onPress={() => openQtyModal(p.id)} />
-              ))}
-              {filteredProducts.length === 0 && (
-                <Text style={styles.noMatch}>Nothing matches "{query}".</Text>
+              {searching && filteredResults.length === 0 ? (
+                <View style={styles.searchLoadingRow}>
+                  <ActivityIndicator color={Colors.amber} />
+                </View>
+              ) : filteredResults.length === 0 ? (
+                <Text style={styles.noMatch}>
+                  {query.trim() ? `Nothing matches "${query}".` : 'Start typing to find products.'}
+                </Text>
+              ) : (
+                filteredResults.map((p) => (
+                  <ProductPickRow key={p.barcode} product={p} onPress={() => openQtyModal(p)} />
+                ))
               )}
             </ScrollView>
           </Pressable>
@@ -238,13 +300,13 @@ export default function ListEditorScreen() {
       </Modal>
 
       <Modal
-        visible={!!qtyTarget && !!qtyProduct}
+        visible={!!qtyTarget}
         transparent
         animationType="slide"
         onRequestClose={() => setQtyTarget(null)}
       >
         <Pressable style={styles.scrim} onPress={() => setQtyTarget(null)}>
-          {qtyProduct && (
+          {qtyTarget && (
             <Pressable
               style={[styles.sheet, styles.qtySheet, { paddingBottom: insets.bottom + 24 }]}
               onPress={(e) => e.stopPropagation()}
@@ -252,12 +314,13 @@ export default function ListEditorScreen() {
               <View style={styles.handle} />
               <View style={styles.qtyHeader}>
                 <View style={styles.qtyThumb}>
-                  <Text style={styles.qtyEmoji}>{qtyProduct.emoji}</Text>
+                  <Text style={styles.qtyEmoji}>{qtyTarget.emoji}</Text>
                 </View>
                 <View>
-                  <Text style={styles.qtyName}>{qtyProduct.name}</Text>
+                  <Text style={styles.qtyName}>{qtyTarget.name}</Text>
                   <Text style={styles.qtyMeta}>
-                    {formatPrice(qtyProduct.price)} per {qtyProduct.unit} · {qtyProduct.tag}
+                    {formatPrice(qtyTarget.price)} per {qtyTarget.unit}
+                    {qtyTarget.brand ? ` · ${qtyTarget.brand}` : ''}
                   </Text>
                 </View>
               </View>
@@ -270,7 +333,7 @@ export default function ListEditorScreen() {
                 </Pressable>
                 <View style={styles.qtyValueRow}>
                   <Text style={styles.qtyValue}>{pendingQty}</Text>
-                  <Text style={styles.qtyUnit}>{qtyProduct.unit}</Text>
+                  <Text style={styles.qtyUnit}>{qtyTarget.unit}</Text>
                 </View>
                 <Pressable
                   style={[styles.qtyCircleBtn, styles.qtyCircleBtnFilled]}
@@ -282,7 +345,7 @@ export default function ListEditorScreen() {
               <View style={styles.qtySubtotal}>
                 <Text style={styles.qtySubtotalLabel}>Subtotal</Text>
                 <Text style={styles.qtySubtotalValue}>
-                  {formatPrice(qtyProduct.price * pendingQty)}
+                  {formatPrice(qtyTarget.price * pendingQty)}
                 </Text>
               </View>
               <Pressable style={styles.confirmBtn} onPress={confirmQty}>
@@ -415,7 +478,7 @@ export default function ListEditorScreen() {
   );
 }
 
-function ProductPickRow({ product, onPress }: { product: Product; onPress: () => void }) {
+function ProductPickRow({ product, onPress }: { product: DisplayProduct; onPress: () => void }) {
   return (
     <Pressable style={styles.pickRow} onPress={onPress}>
       <View style={styles.pickThumb}>
@@ -424,7 +487,7 @@ function ProductPickRow({ product, onPress }: { product: Product; onPress: () =>
       <View style={{ flex: 1 }}>
         <Text style={styles.pickName}>{product.name}</Text>
         <Text style={styles.pickMeta}>
-          {product.tag} · {formatPrice(product.price)}/{product.unit}
+          {product.brand ? `${product.brand} · ` : ''}{formatPrice(product.price)}/{product.unit}
         </Text>
       </View>
       <View style={styles.pickAddBtn}>
@@ -705,6 +768,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     fontSize: 13,
     color: Colors.muted,
+  },
+  searchLoadingRow: {
+    paddingVertical: 30,
+    alignItems: 'center',
   },
 
   qtyHeader: {
