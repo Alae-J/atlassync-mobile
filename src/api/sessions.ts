@@ -1,6 +1,7 @@
 import { api } from './client';
 import { Endpoints } from '../constants/api';
 import type {
+  PaymentIntentResponse,
   PaymentResponse,
   ReceiptResponse,
   SessionHistoryItem,
@@ -25,6 +26,11 @@ export const sessionsApi = {
   },
   pay(sessionId: string, body: PaySessionPayload = {}): Promise<PaymentResponse> {
     return api.post<PaymentResponse>(Endpoints.sessions.pay(sessionId), body).then((r) => r.data);
+  },
+  createPaymentIntent(sessionId: string): Promise<PaymentIntentResponse> {
+    return api
+      .post<PaymentIntentResponse>(Endpoints.sessions.payIntent(sessionId))
+      .then((r) => r.data);
   },
   cancel(sessionId: string): Promise<void> {
     return api.post(Endpoints.sessions.cancel(sessionId)).then(() => undefined);

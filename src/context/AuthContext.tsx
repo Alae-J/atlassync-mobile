@@ -10,6 +10,7 @@ interface AuthContextValue {
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   applyAuthResponse: (response: AuthResponse) => Promise<void>;
+  patchUser: (changes: Partial<StoredUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -35,15 +36,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const persist = async (response: AuthResponse) => {
+    // Preserve any locally-set avatar URI across re-auth events. The backend
+    // doesn't own avatars yet, so we don't blow them away when the server
+    // hands us a fresh user object.
+    const previous = await tokenStorage.getUser();
     const next: StoredUser = {
       userId: response.userId,
       email: response.email,
       username: response.username,
       role: response.role,
       emailVerified: response.emailVerified,
+      phone: response.phone,
+      avatarUri: previous?.avatarUri ?? null,
+      preferences: response.preferences,
     };
     await tokenStorage.set(response.accessToken, response.refreshToken, next);
     setUser(next);
+  };
+
+  /** Patch the locally-stored user — used when avatar changes (no backend yet). */
+  const patchUser = async (changes: Partial<StoredUser>) => {
+    const current = await tokenStorage.getUser();
+    if (!current) return;
+    const merged: StoredUser = { ...current, ...changes };
+    await tokenStorage.setUser(merged);
+    setUser(merged);
   };
 
   const login = async (email: string, password: string) => {
@@ -79,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         applyAuthResponse: persist,
+        patchUser,
       }}
     >
       {children}

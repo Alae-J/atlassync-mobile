@@ -88,7 +88,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.loyaltyTopRow}>
           <Text style={styles.loyaltyMonogram}>P</Text>
-          <Text style={styles.loyaltyMember}>NEW</Text>
+          <Text style={styles.loyaltyMember}>NEW MEMBER</Text>
         </View>
         <LinearGradient
           colors={['#d4b075', '#a88550']}
@@ -114,7 +114,9 @@ export default function RegisterScreen() {
             <TextInput
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
               autoComplete="email"
+              textContentType="emailAddress"
               placeholder="Email address"
               placeholderTextColor={Colors.muted}
               value={email}
@@ -129,6 +131,8 @@ export default function RegisterScreen() {
             <TextInput
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="username"
+              textContentType="username"
               placeholder="Username"
               placeholderTextColor={Colors.muted}
               value={username}
@@ -143,6 +147,11 @@ export default function RegisterScreen() {
           <View style={[styles.field, focused === 'password' && styles.fieldFocused, { marginTop: 8 }]}>
             <TextInput
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="password-new"
+              textContentType="newPassword"
+              passwordRules="minlength: 8;"
               placeholder="Password (min. 8 characters)"
               placeholderTextColor={Colors.muted}
               value={password}

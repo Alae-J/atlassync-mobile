@@ -22,6 +22,8 @@ import {
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { sessionsApi } from '../../src/api';
+import { formatPrice } from '../../src/lib/formatPrice';
+import { downloadReceiptPdf } from '../../src/lib/receiptPdf';
 import type { ReceiptResponse } from '../../src/types';
 import { formatTripRange } from '../../src/lib/receiptDates';
 import { useAuth } from '../../src/context/AuthContext';
@@ -49,6 +51,7 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -122,6 +125,21 @@ export default function OrderDetailScreen() {
   const totalDisplay = isCancelled ? 0 : receipt.totalAmount ?? 0;
   const showHelpNote = !isCancelled && !!helpAt;
 
+  const handleShareReceipt = async () => {
+    if (!receipt || downloading) return;
+    setDownloading(true);
+    try {
+      await downloadReceiptPdf(receipt, {
+        storeLabel: `${storeMeta.name}${storeMeta.city ? ' · ' + storeMeta.city : ''}`,
+        customerName: user?.username ?? '',
+      });
+    } catch (e) {
+      console.warn('[receipt] PDF share failed', e);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       {/* Header strip — celebratory walkout, or quiet past trip */}
@@ -129,10 +147,20 @@ export default function OrderDetailScreen() {
         <WalkoutHeader
           insetsTop={insets.top}
           firstNameLabel={firstName(user) || 'there'}
-          onClose={() => router.replace('/(tabs)/home')}
+          // X on the walkout receipt returns to the gate-pass screen — the
+          // user dismisses to home from the walkout "Done" button, not here.
+          onClose={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/shop/walkout');
+          }}
         />
       ) : (
-        <PastHeader insetsTop={insets.top} onBack={() => router.back()} />
+        <PastHeader
+          insetsTop={insets.top}
+          onBack={() => router.back()}
+          onShare={handleShareReceipt}
+          shareBusy={downloading}
+        />
       )}
 
       <ScrollView
@@ -152,7 +180,8 @@ export default function OrderDetailScreen() {
           <Text style={styles.metaLine}>
             {formatTripRange(receipt.createdAt, receipt.completedAt)}
           </Text>
-          <Text style={styles.totalDisplay}>${totalDisplay.toFixed(2)}</Text>
+          <Text style={styles.totalDisplay}>{formatPrice(totalDisplay)}</Text>
+          <StatusBadge status={receipt.status} />
         </View>
 
         {/* Stats strip */}
@@ -247,11 +276,21 @@ export default function OrderDetailScreen() {
           <View style={styles.actionsSection}>
             <Text style={styles.eyebrow}>RECEIPT</Text>
             <View style={styles.actionsCard}>
-              <Pressable style={[styles.actionRow, styles.actionRowDivider]}>
+              <Pressable
+                style={[styles.actionRow, styles.actionRowDivider, downloading && { opacity: 0.5 }]}
+                disabled={downloading || !receipt}
+                onPress={handleShareReceipt}
+              >
                 <View style={styles.actionIcon}>
-                  <DownloadSimple size={15} color={Colors.amber} weight="regular" />
+                  {downloading ? (
+                    <ActivityIndicator size="small" color={Colors.amber} />
+                  ) : (
+                    <DownloadSimple size={15} color={Colors.amber} weight="regular" />
+                  )}
                 </View>
-                <Text style={styles.actionLabel}>Download PDF receipt</Text>
+                <Text style={styles.actionLabel}>
+                  {downloading ? 'Preparing PDF…' : 'Download PDF receipt'}
+                </Text>
                 <CaretRight size={13} color={Colors.muted} weight="bold" />
               </Pressable>
               <Pressable style={styles.actionRow}>
@@ -345,7 +384,17 @@ function WalkoutHeader({
   );
 }
 
-function PastHeader({ insetsTop, onBack }: { insetsTop: number; onBack: () => void }) {
+function PastHeader({
+  insetsTop,
+  onBack,
+  onShare,
+  shareBusy,
+}: {
+  insetsTop: number;
+  onBack: () => void;
+  onShare?: () => void;
+  shareBusy?: boolean;
+}) {
   return (
     <View>
       <View style={{ height: insetsTop }} />
@@ -353,8 +402,17 @@ function PastHeader({ insetsTop, onBack }: { insetsTop: number; onBack: () => vo
         <Pressable onPress={onBack} hitSlop={10} style={styles.backChip}>
           <ArrowLeft size={16} color={Colors.ink} weight="regular" />
         </Pressable>
-        <Pressable hitSlop={10} style={styles.backChip}>
-          <ShareNetwork size={15} color={Colors.ink} weight="regular" />
+        <Pressable
+          onPress={onShare}
+          disabled={!onShare || shareBusy}
+          hitSlop={10}
+          style={[styles.backChip, shareBusy && { opacity: 0.5 }]}
+        >
+          {shareBusy ? (
+            <ActivityIndicator size="small" color={Colors.ink} />
+          ) : (
+            <ShareNetwork size={15} color={Colors.ink} weight="regular" />
+          )}
         </Pressable>
       </View>
     </View>
@@ -391,9 +449,9 @@ function ItemRow({
       </View>
       <View style={styles.itemPriceCol}>
         <Text style={styles.itemQty}>
-          {quantity} × ${unitPrice.toFixed(2)}
+          {quantity} × {formatPrice(unitPrice)}
         </Text>
-        <Text style={styles.itemLineTotal}>${lineTotal.toFixed(2)}</Text>
+        <Text style={styles.itemLineTotal}>{formatPrice(lineTotal)}</Text>
       </View>
     </Pressable>
   );
@@ -403,7 +461,7 @@ function TotalsRow({ label, value, bold }: { label: string; value: number; bold?
   return (
     <View style={styles.totalsRow}>
       <Text style={[styles.totalsLabel, bold && styles.totalsLabelBold]}>{label}</Text>
-      <Text style={[styles.totalsValue, bold && styles.totalsValueBold]}>${value.toFixed(2)}</Text>
+      <Text style={[styles.totalsValue, bold && styles.totalsValueBold]}>{formatPrice(value)}</Text>
     </View>
   );
 }
@@ -421,6 +479,25 @@ function emojiForName(name: string): string {
     if (lower.includes(keyword)) return emoji;
   }
   return '📦';
+}
+
+// ── Status Badge ──────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<string, { label: string; fg: string; bg: string }> = {
+  REFUNDED: { label: 'REFUNDED', fg: Colors.cream, bg: Colors.danger },
+  PARTIAL_REFUND: { label: 'PARTIAL REFUND', fg: Colors.cream, bg: Colors.amber },
+  DISPUTED: { label: 'DISPUTED', fg: Colors.cream, bg: Colors.amber },
+  CHARGEBACK_LOST: { label: 'CHARGEBACK LOST', fg: Colors.cream, bg: Colors.danger },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const config = STATUS_CONFIG[status];
+  if (!config) return null;
+  return (
+    <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
+      <Text style={[styles.statusBadgeText, { color: config.fg }]}>{config.label}</Text>
+    </View>
+  );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────
@@ -542,6 +619,18 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     marginTop: 18,
     includeFontPadding: false,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginTop: 10,
+  },
+  statusBadgeText: {
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 10.5,
+    letterSpacing: 1.5,
   },
 
   // Stats strip

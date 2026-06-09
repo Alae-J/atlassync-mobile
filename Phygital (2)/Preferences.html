@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Preferences</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens/preferences.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (children) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={false} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        {children}
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="prefs-tab"
+        title="Preferences tab · refreshed rows"
+        subtitle="Six rows in the Account → Preferences card. Five are tappable. Language gets a dashed-rule, a muted ‘SOON’ pill, and no caret — deferred without screaming broken."
+      >
+        <DCArtboard id="prefs-rows" label="Tab rows"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<PreferencesTabRows />)}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="instant-pickers"
+        title="Instant-select pickers"
+        subtitle="Pure single-pick lists. The tap IS the action — no Save button, no confirm step. Selection writes through to the row on the Preferences tab as the screen pops back."
+      >
+        <DCArtboard id="pref-store" label="1 · Default store"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<PrefStore selectedId="aldi-mansoura" />)}
+        </DCArtboard>
+
+        <DCArtboard id="pref-currency" label="2 · Currency"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<PrefCurrency selectedCode="USD" />)}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="multi-pickers"
+        title="Multi-select · explicit Save"
+        subtitle="Toggle + chip-cloud screens where one tap is one delta, so Save is the moment of intent. Sticky ink CTA stays disabled until the selection differs."
+      >
+        <DCArtboard id="pref-notifs" label="3 · Notifications"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<PrefNotifications changed />)}
+        </DCArtboard>
+
+        <DCArtboard id="pref-diet" label="4 · Dietary"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<PrefDietary />)}
+        </DCArtboard>
+
+        <DCArtboard id="pref-allergens" label="5 · Allergens"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          {wrapPhone(<PrefAllergens />)}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="reasoning" title="Reasoning" subtitle="Why this shape.">
+        <DCArtboard id="notes" label="Notes" width={440} height={cardH} style={{ background: '#fffdf8' }}>
+          <div style={{
+            padding: 28, height: '100%', boxSizing: 'border-box',
+            fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+            color: '#1c1a17', overflow: 'auto',
+          }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+              Compose, <span style={{ fontStyle: 'italic', color: '#c87a3a' }}>not reinvent.</span>
+            </div>
+            <p style={{ marginTop: 0 }}>
+              All five screens lift the chrome from the Personal Details
+              flow: back chip, amber eyebrow, italic-serif hero, sticky
+              ink CTA. Nothing about Preferences should feel like a
+              different surface from Edit name / Change password.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>SAVE WHERE INTENT EXISTS</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Store + Currency are single-pick lists. The tap <em>is</em>
+              the decision, so we save immediately and pop back. A Save
+              button would just be a second tap with no information added.
+              Notifications, Dietary, and Allergens are multi-select, so
+              one tap is a delta — Save is the moment of intent there.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>LANGUAGE READS AS DEFERRED, NOT BROKEN</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Dashed rule above and below (instead of solid), a small
+              muted "SOON" pill replacing the caret, and the whole row
+              dimmed to ~78% opacity. Tap is dead. The treatment says
+              "we know about this, it's coming" without a banner or a
+              disabled-looking button.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>ALLERGEN PALETTE ≠ DIETARY PALETTE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Dietary chips are ink-on-cream when on — you're proud of
+              these, they're identity. Allergen chips are softRed wash
+              + softRed text + warning-triangle glyph when on — these
+              are warnings. Same shape, different temperature. The off
+              state is identical (outlined muted) so the cloud reads as
+              one system at a glance.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>RECEIPTS IS LOCKED ON</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The fourth Notifications row is a real grayed-on switch
+              with a tiny padlock glyph in the knob — visible but
+              unflippable. Plus a one-line muted footnote: "Locked
+              categories help us meet our service obligations." Honest
+              about why it can't be turned off.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>NO RESET-TO-DEFAULTS</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The empty state of each preference <em>is</em> the default.
+              Adding a Reset button buys clutter and confusion ("does
+              this reset everything? Just this screen?"). If users want
+              defaults, they deselect.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>STORE LIST FEELS PHYSICAL</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Each store row borrows the Product Detail thumb gradient —
+              cream → wheat — and drops a MapPin glyph at the center.
+              Distance + opening hours in muted underneath. The list
+              feels like real places, not picker options.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>CURRENCY ORDERING</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Sorted by relevance to the target market — EGP and MAD
+              float to the top, then the major Western currencies,
+              then the Gulf ones. The symbol chip on the left uses
+              Instrument Serif so the "$" / "€" / "E£" carries the
+              same loyalty-card numeric feel, miniaturised.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TO DECIDE</div>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li>Should chip-cloud screens auto-save on each toggle (matching the pickers) and lose the Save bar? My instinct is no — bulk edits are easier to compose with a discard option.</li>
+              <li>Notifications: add a "Quiet hours" sub-card here, or save that for a v2?</li>
+              <li>Dietary chip "Pescatarian" — keep separate from Vegetarian, or fold into a sub-radio?</li>
+              <li>Allergens: surface a small "from the EU 14" line above the chips so the medical seriousness of the list is legible?</li>
+            </ol>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

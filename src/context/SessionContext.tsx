@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { cartApi, gateApi, sessionsApi } from '../api';
-import type { CartSnapshot, QrData, StartSessionResponse } from '../types';
+import type { CartSnapshot, QrData, SessionInfo, StartSessionResponse } from '../types';
 
 interface SessionContextValue {
   sessionId: string | null;
@@ -13,7 +13,13 @@ interface SessionContextValue {
   refreshCart: () => Promise<CartSnapshot | null>;
   scanItem: (barcode: string) => Promise<CartSnapshot | null>;
   removeItem: (barcode: string) => Promise<CartSnapshot | null>;
+  /** @deprecated Use the Stripe flow in review.tsx — this hits the fake
+   *  /pay endpoint that bypasses the payment processor. */
   pay: (paymentMethodId?: string) => Promise<QrData>;
+  /** Populates exitQr from a completed-session payload, so the walkout
+   *  screen has the QR ready when it renders. Called by review.tsx after
+   *  waitForSessionStatus returns COMPLETED. */
+  applyCompletedSession: (session: SessionInfo) => void;
   cancel: () => Promise<void>;
   validateExit: () => Promise<void>;
   reset: () => void;
@@ -84,6 +90,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [sessionId],
   );
 
+  const applyCompletedSession = useCallback((session: SessionInfo) => {
+    if (session.exitQr) setExitQr(session.exitQr);
+  }, []);
+
   const cancel = useCallback(async () => {
     if (!sessionId) return;
     await sessionsApi.cancel(sessionId);
@@ -92,7 +102,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const validateExit = useCallback(async () => {
     if (!exitQr) return;
-    await gateApi.exit({ payload: exitQr.payload, signature: exitQr.signature });
+    await gateApi.exit({ correlationId: exitQr.correlationId });
   }, [exitQr]);
 
   return (
@@ -109,6 +119,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         scanItem,
         removeItem,
         pay,
+        applyCompletedSession,
         cancel,
         validateExit,
         reset,

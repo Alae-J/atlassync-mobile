@@ -5,6 +5,7 @@ import { ArrowsLeftRight, ArrowRight } from 'phosphor-react-native';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius } from '../../src/constants/theme';
 import { productById } from '../../src/data/catalog';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 export default function SubstituteScreen() {
   const insets = useSafeAreaInsets();
@@ -44,7 +45,7 @@ export default function SubstituteScreen() {
             </View>
             <Text style={styles.compareName}>{original.name}</Text>
             <Text style={styles.compareMeta}>
-              ${original.price.toFixed(2)}/{original.unit}
+              {formatPrice(original.price)}/{original.unit}
             </Text>
           </View>
           <View style={styles.arrow}>
@@ -66,8 +67,8 @@ export default function SubstituteScreen() {
             </View>
             <Text style={styles.compareName}>{sub.name}</Text>
             <Text style={styles.compareMeta}>
-              ${sub.price.toFixed(2)}/{sub.unit}{' '}
-              <Text style={styles.compareDelta}>+${diff.toFixed(2)}</Text>
+              {formatPrice(sub.price)}/{sub.unit}{' '}
+              <Text style={styles.compareDelta}>+{formatPrice(diff)}</Text>
             </Text>
           </View>
         </View>

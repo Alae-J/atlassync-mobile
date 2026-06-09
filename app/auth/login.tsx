@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { router } from 'expo-router';
 import {
   ArrowLeft,
@@ -11,6 +18,8 @@ import {
   Eye,
   EyeSlash,
   Lock,
+  Question,
+  WifiHigh,
 } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
@@ -40,6 +49,19 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const otpRefs = useRef<(TextInput | null)[]>([]);
+
+  // Slow vertical float for the bank card peek — matches the design's 6s ease.
+  const cardFloat = useSharedValue(0);
+  useEffect(() => {
+    cardFloat.value = withRepeat(
+      withTiming(-8, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [cardFloat]);
+  const bankCardStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: '6deg' }, { translateY: cardFloat.value }],
+  }));
 
   const phoneValid = phone.replace(/\D/g, '').length >= 8;
   const emailValid = email.includes('@') && password.length >= 4;
@@ -125,19 +147,23 @@ export default function LoginScreen() {
         end={{ x: 1, y: 1 }}
       />
 
-      <View style={[styles.topRow, { paddingTop: insets.top + 14 }]}>
+      <View style={[styles.topRow, { paddingTop: insets.top + 10 }]}>
         {step === 'otp' ? (
-          <Pressable onPress={goBack} style={styles.iconBtn}>
+          <Pressable onPress={goBack} style={styles.backChip} hitSlop={8}>
             <ArrowLeft size={16} color={Colors.ink} weight="bold" />
           </Pressable>
         ) : (
-          <View style={styles.iconBtnSpacer} />
+          <View style={styles.brandLockup}>
+            <View style={styles.monoTile}>
+              <Text style={styles.monoLetter}>P</Text>
+            </View>
+            <Text style={styles.wordmark}>PHYGITAL</Text>
+          </View>
         )}
-        <View style={styles.brand}>
-          <View style={styles.brandDot} />
-          <Text style={styles.brandLabel}>PHYGITAL</Text>
-        </View>
-        <View style={styles.iconBtnSpacer} />
+        <Pressable style={styles.helpPill} hitSlop={8} onPress={() => {}}>
+          <Question size={13} color={Colors.muted} weight="regular" />
+          <Text style={styles.helpLabel}>Help</Text>
+        </Pressable>
       </View>
 
       <View style={styles.heroWrap}>
@@ -147,24 +173,72 @@ export default function LoginScreen() {
       </View>
 
       {step === 'input' && (
-        <LinearGradient
-          colors={[Colors.accent, Colors.accentDeep]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.loyaltyPeek}
+        <View
+          style={[styles.bankCardLayer, { top: insets.top + 80 }]}
+          pointerEvents="none"
         >
-          <View style={styles.loyaltyTopRow}>
-            <Text style={styles.loyaltyMonogram}>P</Text>
-            <Text style={styles.loyaltyMember}>MEMBER</Text>
-          </View>
-          <LinearGradient
-            colors={['#d4b075', '#a88550']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.loyaltyChip}
-          />
-          <Text style={styles.loyaltyNumber}>•••• 4892</Text>
-        </LinearGradient>
+          {/* Ghost card behind for stacked depth */}
+          <View style={styles.ghostCard} />
+
+          {/* Main bank card — floating, rotated */}
+          <Animated.View style={[styles.bankCardOuter, bankCardStyle]}>
+            <LinearGradient
+              colors={['#21412e', '#2f5c40', '#16301f']}
+              locations={[0, 0.48, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.bankCard}
+            >
+              {/* Top: issuer + "débit" */}
+              <View style={styles.cardTopRow}>
+                <View>
+                  <Text style={styles.cardPhygital}>Phygital</Text>
+                  <Text style={styles.cardSubLabel}>BANK · MAROC</Text>
+                </View>
+                <Text style={styles.cardDébit}>débit</Text>
+              </View>
+
+              {/* Chip + contactless icon */}
+              <View style={styles.cardChipRow}>
+                <LinearGradient
+                  colors={['#f1d79a', '#d4ad62', '#a8842f']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.cardChip}
+                >
+                  <View style={styles.chipLineVert} />
+                  <View style={[styles.chipLineH, { top: '34%' }]} />
+                  <View style={[styles.chipLineH, { top: '66%' }]} />
+                  <View style={styles.chipCenter} />
+                </LinearGradient>
+                <WifiHigh size={17} color={Colors.cream} weight="thin" />
+              </View>
+
+              {/* 16-digit card number */}
+              <View style={styles.cardNumberRow}>
+                <Text style={styles.cardDigits}>4127</Text>
+                <Text style={styles.cardDigits}>8842</Text>
+                <Text style={styles.cardDigits}>0096</Text>
+                <Text style={styles.cardDigits}>4892</Text>
+              </View>
+
+              {/* Bottom: VALID THRU + name + Mastercard mark */}
+              <View style={styles.cardBottomRow}>
+                <View style={styles.cardBottomLeft}>
+                  <View>
+                    <Text style={styles.cardValidLabel}>VALID THRU</Text>
+                    <Text style={styles.cardValidValue}>09/28</Text>
+                  </View>
+                  <Text style={styles.cardHolderName}>Y. EL AMRANI</Text>
+                </View>
+                <View style={styles.masterMark}>
+                  <View style={[styles.masterCircle, styles.masterRed]} />
+                  <View style={[styles.masterCircle, styles.masterOrange]} />
+                </View>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        </View>
       )}
 
       <KeyboardAvoidingView
@@ -213,7 +287,9 @@ export default function LoginScreen() {
                     <TextInput
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      autoCorrect={false}
                       autoComplete="email"
+                      textContentType="emailAddress"
                       placeholder="Email address"
                       placeholderTextColor={Colors.muted}
                       value={email}
@@ -226,6 +302,10 @@ export default function LoginScreen() {
                   <View style={[styles.fieldStacked, focused === 'password' && styles.fieldFocused, { marginTop: 8 }]}>
                     <TextInput
                       secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="current-password"
+                      textContentType="password"
                       placeholder="Password"
                       placeholderTextColor={Colors.muted}
                       value={password}
@@ -242,7 +322,11 @@ export default function LoginScreen() {
                       )}
                     </Pressable>
                   </View>
-                  <Pressable style={styles.forgotBtn}>
+                  <Pressable
+                    style={styles.forgotBtn}
+                    onPress={() => router.push('/auth/forgot-password')}
+                    hitSlop={8}
+                  >
                     <Text style={styles.forgotText}>Forgot password?</Text>
                   </Pressable>
                 </>
@@ -334,26 +418,62 @@ const styles = StyleSheet.create({
   gradientBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 320 },
 
   topRow: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.inkGlassFill,
+  backChip: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(21,20,15,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconBtnSpacer: { width: 36, height: 36 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  brandDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent },
-  brandLabel: {
+  brandLockup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  monoTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: Colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  monoLetter: {
+    fontFamily: Fonts.serifItalic,
+    fontSize: 23,
+    lineHeight: 23,
+    color: Colors.cream,
+    includeFontPadding: false,
+  },
+  wordmark: {
     fontFamily: Fonts.sansSemibold,
-    fontSize: 11,
-    letterSpacing: 1.5,
+    fontSize: 13.5,
+    letterSpacing: 1.6,
+    color: Colors.ink,
+  },
+  helpPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(21,20,15,0.05)',
+  },
+  helpLabel: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12.5,
     color: Colors.muted,
   },
 
@@ -368,41 +488,170 @@ const styles = StyleSheet.create({
   },
   heroItalic: { fontFamily: Fonts.serifItalic, color: Colors.amber },
 
-  loyaltyPeek: {
+  // Floating bank card layer — anchored top-right, peeks behind the hero.
+  bankCardLayer: {
     position: 'absolute',
-    top: 360,
-    right: -36,
-    width: 170,
-    height: 104,
-    borderRadius: 14,
-    padding: 14,
-    transform: [{ rotate: '8deg' }],
-    ...Shadows.loyalty,
+    right: -20,
+    width: 252,
+    height: 168,
   },
-  loyaltyTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  loyaltyMonogram: {
+  ghostCard: {
+    position: 'absolute',
+    top: 22,
+    right: 22,
+    width: 232,
+    height: 146,
+    borderRadius: 16,
+    backgroundColor: 'rgba(21,20,15,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(21,20,15,0.05)',
+    transform: [{ rotate: '2deg' }],
+  },
+  bankCardOuter: {
+    position: 'absolute',
+    top: 2,
+    right: 0,
+    width: 232,
+    height: 146,
+    borderRadius: 16,
+    shadowColor: '#122616',
+    shadowOffset: { width: 0, height: 26 },
+    shadowOpacity: 0.5,
+    shadowRadius: 44,
+    elevation: 14,
+  },
+  bankCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 15,
+    paddingHorizontal: 17,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardPhygital: {
     fontFamily: Fonts.serifItalic,
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.cream,
+    lineHeight: 16,
+    includeFontPadding: false,
   },
-  loyaltyMember: {
+  cardSubLabel: {
     fontFamily: Fonts.sansSemibold,
-    fontSize: 8,
+    fontSize: 6,
+    letterSpacing: 2,
+    color: 'rgba(244,237,224,0.62)',
+    marginTop: 3,
+  },
+  cardDébit: {
+    fontFamily: Fonts.serifItalic,
+    fontSize: 9,
     letterSpacing: 1,
-    color: 'rgba(244,237,224,0.7)',
-  },
-  loyaltyChip: {
-    width: 28,
-    height: 22,
-    borderRadius: 4,
-    marginTop: 12,
-  },
-  loyaltyNumber: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 10,
-    letterSpacing: 1.5,
     color: 'rgba(244,237,224,0.85)',
-    marginTop: 12,
+  },
+  cardChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginTop: -2,
+  },
+  cardChip: {
+    width: 33,
+    height: 25,
+    borderRadius: 5,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  chipLineVert: {
+    position: 'absolute',
+    left: '50%',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    marginLeft: -0.5,
+    backgroundColor: 'rgba(90,60,10,0.4)',
+  },
+  chipLineH: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(90,60,10,0.4)',
+  },
+  chipCenter: {
+    position: 'absolute',
+    top: '30%',
+    left: '38%',
+    right: '38%',
+    bottom: '30%',
+    borderWidth: 1,
+    borderColor: 'rgba(90,60,10,0.4)',
+    borderRadius: 2,
+  },
+  cardNumberRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  cardDigits: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontSize: 14.5,
+    letterSpacing: 1.2,
+    color: '#f5efe1',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 0,
+  },
+  cardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  cardBottomLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 14,
+  },
+  cardValidLabel: {
+    fontFamily: Fonts.sansSemibold,
+    fontSize: 5.5,
+    letterSpacing: 1,
+    color: 'rgba(244,237,224,0.55)',
+  },
+  cardValidValue: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontSize: 9.5,
+    letterSpacing: 1,
+    color: 'rgba(244,237,224,0.92)',
+    marginTop: 1,
+  },
+  cardHolderName: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 9.5,
+    letterSpacing: 0.6,
+    color: 'rgba(244,237,224,0.92)',
+  },
+  // Two overlapping circles: Mastercard mark.
+  masterMark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  masterCircle: {
+    width: 17,
+    height: 17,
+    borderRadius: 999,
+  },
+  masterRed: {
+    backgroundColor: '#eb001b',
+  },
+  masterOrange: {
+    backgroundColor: '#f79e1b',
+    opacity: 0.75,
+    marginLeft: -7,
   },
 
   sheetWrap: { marginTop: 'auto' },

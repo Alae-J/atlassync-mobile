@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens/login-unified.jsx"></script>
+<script type="text/babel" src="screens/login-safe.jsx"></script>
+<script type="text/babel" src="screens/login-bold.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState } = React;
+
+function App() {
+  const phoneW = 390;
+  const phoneH = 844;
+  const cardW = phoneW + 24; // small breathing room around device
+  const cardH = phoneH + 24;
+
+  const wrapPhone = (Inner) => (
+    <div style={{
+      width: '100%', height: '100%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'transparent',
+    }}>
+      <IOSDevice width={phoneW} height={phoneH}>
+        <IOSStatusBar dark={false} />
+        <div style={{ position: 'absolute', inset: 0, paddingTop: 0 }}>
+          <Inner />
+        </div>
+      </IOSDevice>
+    </div>
+  );
+
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="login-final"
+        title="Login — unified"
+        subtitle="Phone + OTP by default, with a segmented toggle to switch to email/password. Try both modes."
+      >
+        <DCArtboard
+          id="unified"
+          label="Login (unified)"
+          width={cardW}
+          height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone(LoginUnified)}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="login-archive"
+        title="Earlier explorations"
+        subtitle="Original A & B, kept for reference."
+      >
+        <DCArtboard
+          id="safe"
+          label="A · Editorial (archive)"
+          width={cardW}
+          height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone(LoginSafe)}
+        </DCArtboard>
+
+        <DCArtboard
+          id="bold"
+          label="B · Tactile (archive)"
+          width={cardW}
+          height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone(LoginBold)}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="notes"
+        title="Design notes"
+        subtitle="Where I landed, and what I'd want your call on."
+      >
+        <DCArtboard
+          id="rationale"
+          label="Rationale"
+          width={420}
+          height={cardH}
+          style={{ background: '#fffdf8' }}
+        >
+          <div style={{
+            padding: 28, height: '100%', boxSizing: 'border-box',
+            fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+            color: '#1c1a17', overflow: 'auto',
+          }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+              The system,<br/><span style={{ fontStyle: 'italic', color: '#3d6e4a' }}>in short.</span>
+            </div>
+            <p style={{ marginTop: 0 }}>
+              You said <strong>Notion + Netflix</strong>, plus minimal-editorial, soft-friendly,
+              tactile. Those don't naturally fit together — Netflix is dense and dark,
+              Notion is sparse and light. So I split the difference:
+              <strong> calm Notion-y structure with editorial typography</strong> (warm
+              paper background, italic serif accents) and <strong>tactile moments</strong>
+              reserved for the physical-feeling parts (loyalty card, QR, payment).
+            </p>
+
+            <div style={{ marginTop: 22, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TYPE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              <strong>Geist</strong> for UI (clean, modern, not Inter).<br/>
+              <strong>Instrument Serif</strong> for headlines — gives Phygital a small
+              piece of personality without screaming.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>COLOR</div>
+            <div style={{ display: 'flex', gap: 8, margin: '8px 0 6px' }}>
+              {[
+                ['#faf8f4', 'paper'],
+                ['#1c1a17', 'ink'],
+                ['#3d6e4a', 'go'],
+                ['#c87a3a', 'tactile'],
+              ].map(([c, n]) => (
+                <div key={n} style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{
+                    width: '100%', height: 36, borderRadius: 8, background: c,
+                    border: '1px solid rgba(0,0,0,0.06)',
+                  }} />
+                  <div style={{ fontSize: 10, color: '#8a8175', marginTop: 4 }}>{n}</div>
+                </div>
+              ))}
+            </div>
+            <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#5a5448' }}>
+              Warm off-white over sterile white. Single confident green for "go / scanned / paid"
+              moments — the produce-aisle association does free work.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>WHAT TO DECIDE</div>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li>Email/password (A) or phone+OTP (B)? Phone is friendlier for an 80-year-old, supports SMS recovery, and the backend probably wants a phone for receipts anyway.</li>
+              <li>Are we okay with the <strong>italic serif moments</strong> (Welcome <em>back.</em>, Welcome <em>in</em>, Shop <em>without</em>) as a recurring brand tic?</li>
+              <li>Logo is currently a stand-in <strong>P</strong> in italic serif. Real logo when you have one — happy to mock a few.</li>
+            </ol>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>NEXT</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Pick A or B (or a mix). Then I'd suggest <strong>onboarding (3 cards)</strong>
+              → <strong>shopping list editor</strong> → <strong>QR entry</strong> →
+              <strong> in-store scan/list view</strong> → <strong>checkout QR</strong>.
+              Each as its own canvas, two options each.
+            </p>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

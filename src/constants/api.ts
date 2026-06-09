@@ -27,6 +27,17 @@ export const Endpoints = {
     logout: '/api/auth/logout',
     sendEmailVerification: '/api/auth/email/send-verification',
     verifyEmail: '/api/auth/email/verify',
+    passwordReset: {
+      request: '/api/auth/password/reset/request',
+      confirm: '/api/auth/password/reset/confirm',
+    },
+    me: {
+      username: '/api/auth/me/username',
+      password: '/api/auth/me/password',
+      phoneRequest: '/api/auth/me/phone/request',
+      phoneVerify: '/api/auth/me/phone/verify',
+      preferences: '/api/auth/me/preferences',
+    },
   },
   products: {
     byBarcode: (barcode: string) => `/api/products/${barcode}`,
@@ -37,6 +48,7 @@ export const Endpoints = {
     start: '/api/sessions/start',
     get: (id: string) => `/api/sessions/${id}`,
     pay: (id: string) => `/api/sessions/${id}/pay`,
+    payIntent: (id: string) => `/api/sessions/${id}/pay/intent`,
     cancel: (id: string) => `/api/sessions/${id}/cancel`,
     receipt: (id: string) => `/api/sessions/${id}/receipt`,
     history: '/api/sessions/history',

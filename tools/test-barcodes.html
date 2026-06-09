@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AtlasSync — Test Barcodes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    :root {
+      --ink: #15140f;
+      --cream: #f4ede0;
+      --paper: #fffaf0;
+      --muted: #7a7163;
+      --amber: #c87a3a;
+      --accent: #2d5a3d;
+      --danger: #b84537;
+      --line: rgba(21, 20, 15, 0.10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 24px 48px;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+    .masthead {
+      max-width: 720px;
+      margin: 0 auto 28px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 1.6px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 38px;
+      line-height: 1.05;
+      letter-spacing: -1.1px;
+      font-weight: 400;
+      margin: 0 0 14px;
+    }
+    h1 em { color: var(--amber); }
+    .helper {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 520px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    section {
+      grid-column: 1 / -1;
+      margin-top: 18px;
+    }
+    section:first-of-type { margin-top: 0; }
+    section h2 {
+      font-family: Georgia, serif;
+      font-size: 22px;
+      letter-spacing: -0.4px;
+      font-weight: 400;
+      margin: 0 0 4px;
+    }
+    section .aisle-sub {
+      font-size: 11px;
+      letter-spacing: 1.4px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 14px 12px;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 4px 12px rgba(20,15,5,0.04);
+    }
+    .card .top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .card .name {
+      font-family: Georgia, serif;
+      font-size: 18px;
+      line-height: 1.15;
+      letter-spacing: -0.3px;
+    }
+    .card .brand {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .card .price {
+      font-family: Georgia, serif;
+      font-size: 20px;
+      letter-spacing: -0.3px;
+      white-space: nowrap;
+    }
+    .card .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .badge {
+      font-size: 10px;
+      letter-spacing: 0.3px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .badge.aisle { background: rgba(45,90,61,0.10); color: var(--accent); letter-spacing: 1px; }
+    .badge.variant-normal { background: rgba(45,90,61,0.10); color: var(--accent); }
+    .badge.variant-allergen { background: rgba(184,69,55,0.10); color: var(--danger); }
+    .badge.variant-rfid { background: rgba(200,122,58,0.14); color: var(--amber); }
+    .badge.variant-oos { background: rgba(21,20,15,0.06); color: var(--muted); }
+    .barcode-wrap {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .barcode-wrap svg { width: 100%; height: auto; max-height: 80px; }
+    @media print {
+      body { background: white; padding: 16px; }
+      .helper, .masthead .eyebrow { display: none; }
+      .card { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="masthead">
+    <div class="eyebrow">ATLASSYNC · DEV TOOLS</div>
+    <h1>Test <em>barcodes</em>.</h1>
+    <p class="helper">
+      Every product the V5 seed plants in <code>atlassync_product.products</code>, rendered
+      live. Open this page on your laptop and point the phone's scan screen at the codes —
+      each one exercises a specific peek-card variant (normal / allergen-locked / RFID /
+      out-of-stock). Print for paper-scan testing.
+    </p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <script>
+    // ── Catalog mirrors the V5 seed in atlassync-backend ─────────────
+    // Update this list in lockstep with V5__seed_phygital_catalog.sql.
+    const PRODUCTS = [
+      // Aisle 1 · Produce
+      { barcode: '1234567890',    name: 'Bananas',          brand: 'Fairtrade Co-op',       price: 0.59,  aisle: 1,  variant: 'normal',   format: 'CODE128' },
+      { barcode: '0680569123459', name: 'Avocado',          brand: 'Marina Farms',          price: 1.25,  aisle: 1,  variant: 'normal',   format: 'EAN13' },
+      { barcode: '0680569123466', name: 'Roma tomatoes',    brand: 'Local · Wadi El Natrun', price: 1.99, aisle: 1,  variant: 'normal',   format: 'EAN13' },
+      { barcode: '0680569123473', name: 'Yellow onions',    brand: 'Local · Beheira',        price: 1.49, aisle: 1,  variant: 'normal',   format: 'EAN13' },
+      { barcode: '0680569123480', name: 'Honeycrisp apples',brand: 'Wenatchee Orchards',     price: 2.49, aisle: 1,  variant: 'normal',   format: 'EAN13' },
+
+      // Aisle 5 · Dairy
+      { barcode: '2345678901',    name: 'Whole milk',       brand: 'Juhayna',                price: 4.29, aisle: 5,  variant: 'allergen', format: 'CODE128' },
+      { barcode: '0680569123497', name: 'Eggs, dozen',      brand: 'Daltex Free-Range',      price: 6.99, aisle: 5,  variant: 'normal',   format: 'EAN13' },
+      { barcode: '0680569123503', name: 'Aged cheddar',     brand: 'Domty Reserve',          price: 7.50, aisle: 5,  variant: 'oos',      format: 'EAN13' },
+      { barcode: '0680569123510', name: 'Greek yogurt',     brand: 'Juhayna Mix',            price: 5.99, aisle: 5,  variant: 'allergen', format: 'EAN13' },
+
+      // Aisle 8 · Bakery
+      { barcode: '0680569123527', name: 'Sourdough loaf',   brand: 'Anbar Bakery',           price: 5.50, aisle: 8,  variant: 'normal',   format: 'EAN13' },
+
+      // Aisle 9 · Pantry
+      { barcode: '0680569123534', name: 'Penne pasta',      brand: 'Regina',                 price: 2.49, aisle: 9,  variant: 'normal',   format: 'EAN13' },
+      { barcode: '0680569123541', name: 'Olive oil',        brand: 'Crete Gold',             price: 12.99, aisle: 9, variant: 'normal',   format: 'EAN13' },
+      { barcode: '0680569123558', name: 'Whole-bean coffee',brand: 'Beanbelt Roastery',      price: 13.50, aisle: 9, variant: 'normal',   format: 'EAN13' },
+
+      // Aisle 11 · Seafood
+      { barcode: '0680569123565', name: 'Atlantic salmon',  brand: 'Norvik Fjord',           price: 14.99, aisle: 11, variant: 'rfid',    format: 'EAN13' },
+
+      // Aisle 12 · Halal counter
+      { barcode: '3456789012',    name: 'Chicken breast',   brand: 'Halayeb Halal',          price: 8.99, aisle: 12, variant: 'rfid',     format: 'CODE128' },
+    ];
+
+    const AISLE_TITLES = {
+      1:  { name: 'Produce',       sub: 'Fruits & vegetables' },
+      5:  { name: 'Dairy',         sub: 'Milk, cheese, yogurt' },
+      8:  { name: 'Bakery',        sub: 'Bread & pastries' },
+      9:  { name: 'Pantry',        sub: 'Oils, pasta, grains' },
+      11: { name: 'Seafood',       sub: 'Fresh fish counter' },
+      12: { name: 'Halal counter', sub: 'Meat & poultry' },
+    };
+
+    const VARIANT_LABELS = {
+      normal:   { label: 'Normal',          cls: 'variant-normal' },
+      allergen: { label: 'Allergen — milk',  cls: 'variant-allergen' },
+      rfid:     { label: 'RFID secured',     cls: 'variant-rfid' },
+      oos:      { label: 'Out of stock',     cls: 'variant-oos' },
+    };
+
+    function render() {
+      const grid = document.getElementById('grid');
+      const byAisle = new Map();
+      PRODUCTS.forEach((p) => {
+        if (!byAisle.has(p.aisle)) byAisle.set(p.aisle, []);
+        byAisle.get(p.aisle).push(p);
+      });
+
+      [...byAisle.entries()].sort(([a], [b]) => a - b).forEach(([aisle, items]) => {
+        const title = AISLE_TITLES[aisle] || { name: 'Aisle ' + aisle, sub: '' };
+        const section = document.createElement('section');
+        section.innerHTML = `
+          <h2>${title.name}</h2>
+          <div class="aisle-sub">AISLE ${aisle} · ${title.sub.toUpperCase()}</div>
+        `;
+        grid.appendChild(section);
+
+        items.forEach((p) => {
+          const variant = VARIANT_LABELS[p.variant];
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div class="top">
+              <div>
+                <div class="name">${p.name}</div>
+                <div class="brand">${p.brand}</div>
+              </div>
+              <div class="price">$${p.price.toFixed(2)}</div>
+            </div>
+            <div class="badges">
+              <span class="badge aisle">AISLE ${p.aisle}</span>
+              <span class="badge ${variant.cls}">${variant.label}</span>
+            </div>
+            <div class="barcode-wrap">
+              <svg id="bc-${p.barcode}"></svg>
+            </div>
+          `;
+          grid.appendChild(card);
+
+          try {
+            JsBarcode('#bc-' + p.barcode, p.barcode, {
+              format: p.format,
+              width: 2,
+              height: 60,
+              displayValue: true,
+              fontSize: 12,
+              margin: 4,
+            });
+          } catch (err) {
+            console.error('Failed to render', p.barcode, err);
+          }
+        });
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>

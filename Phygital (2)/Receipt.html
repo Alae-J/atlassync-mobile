@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phygital · Receipt</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', -apple-system, system-ui, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="screens/data.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens/receipt.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const phoneW = 390;
+const phoneH = 844;
+const cardW = phoneW + 24;
+const cardH = phoneH + 24;
+
+const wrapPhone = (props) => (
+  <div style={{
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'transparent',
+  }}>
+    <IOSDevice width={phoneW} height={phoneH}>
+      <IOSStatusBar dark={false} />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <Receipt {...props} />
+      </div>
+    </IOSDevice>
+  </div>
+);
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="receipt-entries"
+        title="Order detail · two entry points"
+        subtitle="One body, two header strips. Reached right after walkout, or by tapping a past trip from Orders / Recent Shops."
+      >
+        <DCArtboard
+          id="walkout"
+          label="A. Just walked out — celebratory header"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'walkout' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="past-trip"
+          label="B. Past trip — back + share"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'past' })}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="receipt-edges"
+        title="Edge states"
+        subtitle="Three things the receipt has to handle without flinching."
+      >
+        <DCArtboard
+          id="cancelled"
+          label="Cancelled session — $0.00, no items"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'cancelled' })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="help"
+          label="Help was called — small note above items"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'past', helpRequested: true })}
+        </DCArtboard>
+
+        <DCArtboard
+          id="refunded"
+          label="Refunded line — strikethrough + chip"
+          width={cardW} height={cardH}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
+          {wrapPhone({ variant: 'past', refundedId: 'avocado' })}
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        id="receipt-rationale"
+        title="Reasoning"
+        subtitle="Why this shape."
+      >
+        <DCArtboard id="why-receipt" label="Notes" width={420} height={cardH} style={{ background: '#fffdf8' }}>
+          <div style={{
+            padding: 28, height: '100%', boxSizing: 'border-box',
+            fontFamily: 'Geist, system-ui, sans-serif', fontSize: 13.5, lineHeight: 1.6,
+            color: '#1c1a17', overflow: 'auto',
+          }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 30, lineHeight: 1.05, marginBottom: 16 }}>
+              A <span style={{ fontStyle: 'italic', color: '#c87a3a' }}>record,</span> not a marketing asset.
+            </div>
+            <p style={{ marginTop: 0 }}>
+              The body is the same for both entry points. The store hero,
+              metadata line, and the giant Instrument Serif total carry the
+              whole story — no map, no satisfaction emoji, no star rating.
+              The wash + the typography <em>are</em> the celebratory moment;
+              we don't pile more on top.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>ROW = COMPRESSED PRODUCT DETAIL</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Each line item is the Product Detail hero, compressed into a
+              strip: cream-gradient thumb, sans name, muted brand, aisle pill,
+              nutriscore. Plus qty × unit muted up top and the line total in
+              Instrument Serif right-aligned. Tapping the row pushes Detail —
+              same surface, smaller scale.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>NUMERICS LIVE IN THE STATS STRIP</div>
+            <p style={{ margin: '6px 0 0' }}>
+              "12 items / Visa ·· 4287 / 5 aisles" are in Instrument Serif
+              at h4 scale, separated by hairlines. That's the one place
+              metadata gets to feel like the loyalty card's "2,840." The
+              rest of the chrome stays sans + muted.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>HEADER A ≠ HEADER B</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The celebratory variant has no back affordance — it's a fresh
+              modal terminus, not a stack push. A close × dismisses to home.
+              The past-trip variant gets the standard back chip on the left
+              and a share chip on the right (PDF / email out).
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>RE-BUY, NOT RE-CHARGE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              The sticky CTA opens the same list-picker half-sheet you see
+              from Search and Detail — pre-filled with these items, asking
+              which list to land them in. The button copy never implies
+              re-payment.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>CANCELLED IS QUIET</div>
+            <p style={{ margin: '6px 0 0' }}>
+              $0.00 in the hero, a single muted paper card explaining no
+              items were charged, and an outline-style Close button at
+              the bottom. No Re-buy, no actions block — there's nothing
+              to act on.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>REFUNDS DON'T HIDE</div>
+            <p style={{ margin: '6px 0 0' }}>
+              Refunded lines stay in place, in order — strikethrough on the
+              total, a muted "Refunded · $X" chip below the row's chips.
+              Hiding them would make the receipt feel doctored.
+            </p>
+
+            <div style={{ marginTop: 18, fontWeight: 600, fontSize: 11, letterSpacing: 1.4, color: '#8a8175' }}>TO DECIDE</div>
+            <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li>Should the cancelled variant route home automatically after a beat, or hold until Close?</li>
+              <li>Refund chip color — keep it muted (current) or use the amber accent so it scans faster?</li>
+              <li>Walkout header: should it persist if you scroll back to the top later, or only appear on first reveal?</li>
+            </ol>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

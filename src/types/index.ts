@@ -1,4 +1,12 @@
 /** Auth */
+export interface UserPreferences {
+  defaultStoreId: number | null;
+  currencyCode: string;
+  dietaryPrefs: string[];
+  allergens: string[];
+  notificationPrefs: Record<string, boolean>;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
@@ -7,6 +15,8 @@ export interface AuthResponse {
   username: string | null;
   role: string;
   emailVerified: boolean;
+  phone: string | null;
+  preferences: UserPreferences;
 }
 
 export interface User {
@@ -15,6 +25,8 @@ export interface User {
   username: string | null;
   role: string;
   emailVerified: boolean;
+  phone: string | null;
+  preferences: UserPreferences;
 }
 
 /** Products */
@@ -81,6 +93,14 @@ export interface PaymentResponse {
   exitQr: QrData;
 }
 
+export interface PaymentIntentResponse {
+  sessionId: string;
+  paymentIntentId: string;
+  clientSecret: string;
+  amount: number;
+  currency: string;
+}
+
 export interface GateValidationResponse {
   valid: boolean;
   sessionId: string | null;
@@ -92,6 +112,7 @@ export interface SessionInfo {
   userId: number;
   status: string;
   createdAt: string;
+  exitQr?: QrData | null;
 }
 
 /** Frozen line item snapshotted from the cart at payment time. */

@@ -16,6 +16,9 @@ import { ArrowLeft, ArrowRight, EnvelopeSimple } from 'phosphor-react-native';
 import { Colors, Fonts, Radius, Shadows, Type } from '../../src/constants/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { authApi } from '../../src/api';
+import { backTo } from '../../src/lib/nav';
+
+const backToAccount = backTo('/(tabs)/account?tab=profile');
 
 const CODE_LENGTH = 6;
 
@@ -77,7 +80,7 @@ export default function VerifyEmailScreen() {
     try {
       const res = await authApi.verifyEmail(value);
       await applyAuthResponse(res);
-      router.back();
+      backToAccount();
     } catch (e: unknown) {
       setError(extractMessage(e, 'That code didn’t work. Try again.'));
       setCode('');
@@ -103,7 +106,7 @@ export default function VerifyEmailScreen() {
       />
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={backToAccount}
         style={[styles.backBtn, { top: insets.top + 12 }]}
         hitSlop={12}
       >

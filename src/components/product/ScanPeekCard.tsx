@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -12,6 +12,7 @@ import Animated, {
 import { Check, ArrowCounterClockwise, CaretRight, Warning, WifiHigh } from 'phosphor-react-native';
 import { Colors, Fonts, Radius } from '../../constants/theme';
 import type { DisplayProduct } from '../../lib/productDisplay';
+import { formatPrice } from '../../lib/formatPrice';
 import { ProductThumb } from './ProductThumb';
 import { AislePill } from './AislePill';
 import { NutriscoreBadge } from './NutriscoreBadge';
@@ -53,7 +54,10 @@ export function ScanPeekCard({ peek, onDismiss, onSeeDetails, onUndo, onTryAgain
   const drain = useSharedValue(1);
 
   const isLocked = peek.kind === 'allergen';
-  const pausedRef = useRef(false);
+  // Shared value (not useRef) so the worklet-side withTiming callback can read
+  // it without tripping Reanimated's "modify key 'current' after worklet
+  // capture" warning. Worklets are allowed to read/write .value directly.
+  const paused = useSharedValue(false);
 
   useEffect(() => {
     if (peek.kind === 'idle') {
@@ -65,7 +69,7 @@ export function ScanPeekCard({ peek, onDismiss, onSeeDetails, onUndo, onTryAgain
     }
 
     // Rise in.
-    pausedRef.current = false;
+    paused.value = false;
     offset.value = withSpring(0, { damping: 22, stiffness: 240 });
     opacity.value = withTiming(1, { duration: 180 });
 
@@ -76,14 +80,14 @@ export function ScanPeekCard({ peek, onDismiss, onSeeDetails, onUndo, onTryAgain
         0,
         { duration: DRAIN_MS, easing: Easing.linear },
         (finished) => {
-          if (finished && !pausedRef.current) runOnJS(onDismiss)();
+          if (finished && !paused.value) runOnJS(onDismiss)();
         },
       );
     } else {
       cancelAnimation(drain);
       drain.value = 1;
     }
-  }, [peek.kind, isLocked, offset, opacity, drain, onDismiss]);
+  }, [peek.kind, isLocked, offset, opacity, drain, paused, onDismiss]);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -95,7 +99,7 @@ export function ScanPeekCard({ peek, onDismiss, onSeeDetails, onUndo, onTryAgain
   }));
 
   const pauseDrain = () => {
-    pausedRef.current = true;
+    paused.value = true;
     cancelAnimation(drain);
   };
 
@@ -158,7 +162,7 @@ export function ScanPeekCard({ peek, onDismiss, onSeeDetails, onUndo, onTryAgain
               </Text>
             )}
           </View>
-          <Text style={styles.price}>${product.price.toFixed(2)}</Text>
+          <Text style={styles.price}>{formatPrice(product.price, product.currencyCode)}</Text>
         </View>
 
         {showAllergen && (

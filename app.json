@@ -32,7 +32,20 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow AtlasSync to use your camera to scan product barcodes while you shop."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow AtlasSync to access your photo library so you can pick a profile picture.",
+          "cameraPermission": "Allow AtlasSync to use your camera to take a profile picture."
+        }
+      ]
     ]
   }
 }

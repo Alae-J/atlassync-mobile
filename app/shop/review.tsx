@@ -4,16 +4,37 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ArrowRight, WarningCircle } from 'phosphor-react-native';
 import { router } from 'expo-router';
+import { useStripe, PaymentSheetError } from '@stripe/stripe-react-native';
 import { Colors, Fonts, Radius, Shadows } from '../../src/constants/theme';
 import { useSession } from '../../src/context/SessionContext';
+import { useAuth } from '../../src/context/AuthContext';
+import { sessionsApi } from '../../src/api';
+import { waitForSessionStatus } from '../../src/lib/waitForSessionStatus';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 const TAX_RATE = 0.0875;
 
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();
-  const { cart, refreshCart, pay } = useSession();
+  const { cart, refreshCart, sessionId, applyCompletedSession } = useSession();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { user } = useAuth();
   const [paying, setPaying] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pressing back from review should land on scan, not whatever the nested
+  // Stack thinks is "previous" — depending on whether the user took the
+  // search detour the stack history might point to /shop/arrive instead.
+  const handleBack = () => {
+    if (sessionId) {
+      router.replace('/shop/scan');
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/home');
+    }
+  };
 
   useEffect(() => {
     refreshCart().catch(() => undefined);
@@ -25,14 +46,61 @@ export default function ReviewScreen() {
   const total = subtotal + tax;
 
   const handlePay = async () => {
-    if (paying) return;
+    if (!sessionId || paying || paymentConfirmed) return;
     setError(null);
     setPaying(true);
     try {
-      await pay();
+      // 1. Server creates the PaymentIntent (server-authoritative amount).
+      const intent = await sessionsApi.createPaymentIntent(sessionId);
+
+      // 2. Hand the client_secret to Stripe SDK and present the sheet.
+      const init = await initPaymentSheet({
+        paymentIntentClientSecret: intent.clientSecret,
+        merchantDisplayName: 'AtlasSync',
+        // Required for redirect-flow payment methods (3DS, iDEAL, etc.).
+        returnURL: 'atlassync://stripe-redirect',
+        defaultBillingDetails: { name: user?.username ?? undefined },
+      });
+      if (init.error) {
+        console.warn('[stripe] initPaymentSheet failed', init.error);
+        throw new Error(init.error.localizedMessage ?? init.error.message);
+      }
+
+      const present = await presentPaymentSheet();
+      if (present.error) {
+        // User dismissed the sheet — don't surface as an error. finally
+        // resets the spinner so they can retry.
+        if (present.error.code === PaymentSheetError.Canceled) return;
+        console.warn('[stripe] presentPaymentSheet failed', present.error);
+        throw new Error(present.error.localizedMessage ?? present.error.message);
+      }
+
+      // 3. Stripe has charged the card. Lock the Pay button so a slow
+      //    webhook can't lead to a second charge if the user re-taps.
+      setPaymentConfirmed(true);
+
+      // 4. Wait for the webhook to mark the session COMPLETED.
+      const completed = await waitForSessionStatus(sessionId, 'COMPLETED', {
+        timeoutMs: 60_000,
+      });
+      applyCompletedSession(completed);
+
+      // 5. Walkout — exitQr is now in SessionContext.
       router.replace('/shop/walkout');
-    } catch {
-      setError('Payment failed. Try again.');
+    } catch (e: unknown) {
+      if (paymentConfirmed) {
+        // Charge cleared but we couldn't see COMPLETED in time. Tell the
+        // user we'll finalize in the background — DO NOT re-enable Pay.
+        setError(
+          'Payment received. We\'re finalizing your trip — open Orders in a moment to see the receipt.',
+        );
+      } else {
+        setError(
+          e instanceof Error && e.message
+            ? e.message
+            : 'Payment failed. Try again.',
+        );
+      }
     } finally {
       setPaying(false);
     }
@@ -49,7 +117,7 @@ export default function ReviewScreen() {
       />
 
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable style={styles.iconBtn} onPress={() => router.back()}>
+        <Pressable style={styles.iconBtn} onPress={handleBack}>
           <ArrowLeft size={16} color={Colors.ink} weight="bold" />
         </Pressable>
         <Text style={styles.headerLabel}>REVIEW & PAY</Text>
@@ -93,11 +161,11 @@ export default function ReviewScreen() {
                   <Text style={styles.receiptName}>{line.productName}</Text>
                 </View>
                 <Text style={styles.receiptMeta}>
-                  {line.quantity} × ${line.priceAtAddition.toFixed(2)}
+                  {line.quantity} × {formatPrice(line.priceAtAddition)}
                 </Text>
               </View>
               <Text style={styles.receiptAmount}>
-                ${(line.priceAtAddition * line.quantity).toFixed(2)}
+                {formatPrice(line.priceAtAddition * line.quantity)}
               </Text>
             </View>
           ))}
@@ -106,11 +174,11 @@ export default function ReviewScreen() {
         <View style={styles.totalsBlock}>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>Subtotal</Text>
-            <Text style={styles.totalsAmount}>${subtotal.toFixed(2)}</Text>
+            <Text style={styles.totalsAmount}>{formatPrice(subtotal)}</Text>
           </View>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>Tax (8.75%)</Text>
-            <Text style={styles.totalsAmount}>${tax.toFixed(2)}</Text>
+            <Text style={styles.totalsAmount}>{formatPrice(tax)}</Text>
           </View>
         </View>
 
@@ -125,15 +193,17 @@ export default function ReviewScreen() {
         <View style={styles.payCard}>
           <View>
             <Text style={styles.payLabel}>YOU PAY</Text>
-            <Text style={styles.payAmount}>${total.toFixed(2)}</Text>
+            <Text style={styles.payAmount}>{formatPrice(total)}</Text>
           </View>
           <Pressable
-            style={[styles.payBtn, (paying || lines.length === 0) && { opacity: 0.6 }]}
-            disabled={paying || lines.length === 0}
+            style={[styles.payBtn, (paying || paymentConfirmed || lines.length === 0) && { opacity: 0.6 }]}
+            disabled={paying || paymentConfirmed || lines.length === 0}
             onPress={handlePay}
           >
-            <Text style={styles.payBtnText}>{paying ? 'Processing…' : 'Pay & walk out'}</Text>
-            {!paying && <ArrowRight size={14} color={Colors.ink} weight="bold" />}
+            <Text style={styles.payBtnText}>
+              {paying ? 'Processing…' : paymentConfirmed ? 'Confirming…' : 'Pay & walk out'}
+            </Text>
+            {!paying && !paymentConfirmed && <ArrowRight size={14} color={Colors.ink} weight="bold" />}
           </Pressable>
         </View>
       </View>

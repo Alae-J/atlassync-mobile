@@ -9,6 +9,7 @@ import Animated, {
 import { ShoppingCart, CaretRight } from 'phosphor-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Fonts, Radius } from '../../constants/theme';
+import { formatPrice } from '../../lib/formatPrice';
 
 interface Props {
   itemCount: number;
@@ -55,7 +56,7 @@ export function ScanTotalsStrip({ itemCount, total, freshnessTick, onPress }: Pr
           <Text style={styles.totals}>
             {itemCount} items
             <Text style={styles.divider}>  ·  </Text>
-            ${total.toFixed(2)}
+            {formatPrice(total)}
           </Text>
         </View>
       </View>

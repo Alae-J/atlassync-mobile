@@ -7,6 +7,7 @@ import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../../src/constant
 import { sessionsApi } from '../../src/api';
 import type { SessionHistoryItem } from '../../src/types';
 import { formatShortDate } from '../../src/lib/receiptDates';
+import { formatPrice } from '../../src/lib/formatPrice';
 
 const STORE_NAMES: Record<number, string> = { 1: 'Aldi · Mansoura' };
 
@@ -80,7 +81,7 @@ export default function OrdersScreen() {
                   </Text>
                 </View>
                 <Text style={styles.rowAmount}>
-                  ${(order.totalAmount ?? 0).toFixed(2)}
+                  {formatPrice(order.totalAmount ?? 0)}
                 </Text>
               </Pressable>
             ))}
