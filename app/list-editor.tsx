@@ -6,8 +6,7 @@ import { ArrowLeft, ArrowRight, DotsThreeVertical, Plus, Minus, MagnifyingGlass,
 import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, Fonts, Radius, Shadows, TabBarHeight } from '../src/constants/theme';
 import { TabBar } from '../src/components/TabBar';
-import { productById, savedLists, type Product as CatalogProduct } from '../src/data/catalog';
-import { productsApi } from '../src/api';
+import { listsApi, productsApi } from '../src/api';
 import { toDisplayProduct, type DisplayProduct } from '../src/lib/productDisplay';
 import { formatPrice } from '../src/lib/formatPrice';
 
@@ -16,39 +15,6 @@ interface ListItem {
   product: DisplayProduct;
   qty: number;
 }
-
-// Synthesise a DisplayProduct from the hardcoded catalog mock so saved-list /
-// fallback items render with the same shape as live search results. Once the
-// saved-lists feature is backend-backed, this can go.
-function catalogToDisplay(p: CatalogProduct): DisplayProduct {
-  return {
-    id: 0,
-    barcode: `catalog:${p.id}`,
-    name: p.name,
-    brand: p.tag,
-    price: p.price,
-    currencyCode: 'MAD',
-    unit: p.unit,
-    emoji: p.emoji,
-    aisle: null,
-    nutriscore: null,
-    inStock: true,
-    dietary: [],
-    allergens: [],
-    nutrition: null,
-    ingredients: '',
-    about: null,
-    rfidSecurityRequired: false,
-  };
-}
-
-const FALLBACK_CATALOG_IDS: Array<{ id: string; qty: number }> = [
-  { id: 'banana', qty: 2 },
-  { id: 'milk', qty: 1 },
-  { id: 'avocado', qty: 4 },
-  { id: 'chicken', qty: 1 },
-  { id: 'olive-oil', qty: 1 },
-];
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -59,31 +25,23 @@ export default function ListEditorScreen() {
   const params = useLocalSearchParams<{ id?: string; from?: string }>();
   const origin: EditorOrigin = params.from === 'shop-arrive' ? 'shop-arrive' : 'lists';
 
-  const sourceList = useMemo(
-    () => (params.id ? savedLists.find((l) => l.id === params.id) : undefined),
-    [params.id],
-  );
+  const listId = useMemo(() => {
+    if (!params.id) return null;
+    const n = Number(params.id);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [params.id]);
 
-  const initialItems = useMemo<ListItem[]>(() => {
-    if (sourceList) {
-      return sourceList.items
-        .map((id) => productById(id))
-        .filter((p): p is CatalogProduct => !!p)
-        .map((p) => ({ barcode: `catalog:${p.id}`, product: catalogToDisplay(p), qty: 1 }));
+  // Redirect back if there's no valid numeric id
+  useEffect(() => {
+    if (params.id !== undefined && listId === null) {
+      router.replace('/(tabs)/lists');
     }
-    if (params.id) return [];
-    return FALLBACK_CATALOG_IDS
-      .map(({ id, qty }) => {
-        const p = productById(id);
-        return p ? { barcode: `catalog:${p.id}`, product: catalogToDisplay(p), qty } : null;
-      })
-      .filter((it): it is ListItem => !!it);
-  }, [sourceList, params.id]);
+  }, [listId, params.id]);
 
-  const heroTitle = sourceList?.name ?? (params.id ? 'New list' : 'Saturday haul');
+  const [items, setItems] = useState<ListItem[]>([]);
+  const [name, setName] = useState('New list');
+  const [loadingList, setLoadingList] = useState(!!listId);
 
-  const [items, setItems] = useState<ListItem[]>(initialItems);
-  const [name, setName] = useState(heroTitle);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [qtyTarget, setQtyTarget] = useState<DisplayProduct | null>(null);
   const [pendingQty, setPendingQty] = useState(1);
@@ -92,8 +50,55 @@ export default function ListEditorScreen() {
   const [searching, setSearching] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameDraft, setRenameDraft] = useState(heroTitle);
+  const [renameDraft, setRenameDraft] = useState('New list');
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load existing list on mount
+  useEffect(() => {
+    if (!listId) return;
+    let cancelled = false;
+    setLoadingList(true);
+
+    (async () => {
+      try {
+        const detail = await listsApi.get(listId);
+        if (cancelled) return;
+
+        setName(detail.name);
+        setRenameDraft(detail.name);
+
+        if (detail.items.length === 0) {
+          setItems([]);
+          setLoadingList(false);
+          return;
+        }
+
+        const barcodes = detail.items.map((i) => i.barcode);
+        const products = await productsApi.batch(barcodes);
+        if (cancelled) return;
+
+        const productMap = new Map(products.map((p) => [p.barcode, p]));
+
+        const enriched: ListItem[] = detail.items
+          .map((item) => {
+            const product = productMap.get(item.barcode);
+            if (!product) return null; // barcode no longer in catalog — skip silently
+            return { barcode: item.barcode, product: toDisplayProduct(product), qty: item.qty };
+          })
+          .filter((it): it is ListItem => it !== null);
+
+        setItems(enriched);
+      } catch {
+        // Failed to load — leave empty, user can still add items
+      } finally {
+        if (!cancelled) setLoadingList(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [listId]);
 
   const exit = () => {
     if (origin === 'shop-arrive') router.replace('/shop/arrive');
@@ -133,6 +138,48 @@ export default function ListEditorScreen() {
     setQtyTarget(null);
   };
 
+  const handleSave = async () => {
+    if (!listId || saving) return;
+    setSaving(true);
+    try {
+      await listsApi.update(listId, {
+        items: items.map((it) => ({ barcode: it.barcode, qty: it.qty })),
+      });
+      exit();
+    } catch {
+      setSaving(false);
+    }
+  };
+
+  const handleRenameConfirm = async () => {
+    const trimmed = renameDraft.trim();
+    if (!trimmed) return;
+    setRenameError(null);
+
+    setName(trimmed);
+    setRenameOpen(false);
+
+    if (!listId) return;
+    try {
+      await listsApi.update(listId, { name: trimmed });
+    } catch {
+      setRenameError('Could not save name. Try again.');
+      // Revert to previous name on failure
+      setName(name);
+    }
+  };
+
+  const handleDelete = async () => {
+    setConfirmDelete(false);
+    if (!listId) { exit(); return; }
+    try {
+      await listsApi.remove(listId);
+    } catch {
+      // Even on error, navigate away — the list will still exist on backend
+    }
+    exit();
+  };
+
   useEffect(() => {
     if (!browseOpen) return;
     const trimmed = query.trim();
@@ -157,6 +204,14 @@ export default function ListEditorScreen() {
   const filteredResults = results.filter(
     (p) => !items.find((it) => it.barcode === p.barcode),
   );
+
+  if (loadingList) {
+    return (
+      <View style={[styles.root, styles.loadingRoot]}>
+        <ActivityIndicator color={Colors.amber} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -240,15 +295,21 @@ export default function ListEditorScreen() {
             <Text style={styles.totalLabel}>TOTAL</Text>
             <Text style={styles.totalAmount}>{formatPrice(totalEst)}</Text>
           </View>
-          <Pressable style={styles.saveBtn} onPress={exit}>
-            <Text style={styles.saveBtnText}>Save & go</Text>
-            <ArrowRight size={14} color={Colors.ink} weight="bold" />
+          <Pressable style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={handleSave} disabled={saving}>
+            {saving
+              ? <ActivityIndicator size="small" color={Colors.ink} />
+              : <>
+                  <Text style={styles.saveBtnText}>Save & go</Text>
+                  <ArrowRight size={14} color={Colors.ink} weight="bold" />
+                </>
+            }
           </Pressable>
         </View>
       )}
 
       <TabBar active="lists" />
 
+      {/* Browse / Add Items sheet */}
       <Modal
         visible={browseOpen}
         transparent
@@ -299,6 +360,7 @@ export default function ListEditorScreen() {
         </Pressable>
       </Modal>
 
+      {/* Qty picker sheet */}
       <Modal
         visible={!!qtyTarget}
         transparent
@@ -356,6 +418,7 @@ export default function ListEditorScreen() {
         </Pressable>
       </Modal>
 
+      {/* Menu sheet */}
       <Modal
         visible={menuOpen}
         transparent
@@ -373,6 +436,7 @@ export default function ListEditorScreen() {
               onPress={() => {
                 setMenuOpen(false);
                 setRenameDraft(name);
+                setRenameError(null);
                 setRenameOpen(true);
               }}
             >
@@ -397,6 +461,7 @@ export default function ListEditorScreen() {
         </Pressable>
       </Modal>
 
+      {/* Rename sheet */}
       <Modal
         visible={renameOpen}
         transparent
@@ -421,16 +486,16 @@ export default function ListEditorScreen() {
               autoFocus
               maxLength={48}
             />
+            {renameError && (
+              <Text style={styles.renameError}>{renameError}</Text>
+            )}
             <View style={styles.alertActions}>
               <Pressable style={styles.alertBtnGhost} onPress={() => setRenameOpen(false)}>
                 <Text style={styles.alertBtnGhostText}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={styles.alertBtnPrimary}
-                onPress={() => {
-                  if (renameDraft.trim()) setName(renameDraft.trim());
-                  setRenameOpen(false);
-                }}
+                onPress={handleRenameConfirm}
               >
                 <Text style={styles.alertBtnPrimaryText}>Save</Text>
               </Pressable>
@@ -439,6 +504,7 @@ export default function ListEditorScreen() {
         </Pressable>
       </Modal>
 
+      {/* Delete confirmation sheet */}
       <Modal
         visible={confirmDelete}
         transparent
@@ -463,10 +529,7 @@ export default function ListEditorScreen() {
               </Pressable>
               <Pressable
                 style={styles.alertBtnDanger}
-                onPress={() => {
-                  setConfirmDelete(false);
-                  exit();
-                }}
+                onPress={handleDelete}
               >
                 <Text style={styles.alertBtnDangerText}>Delete</Text>
               </Pressable>
@@ -499,6 +562,7 @@ function ProductPickRow({ product, onPress }: { product: DisplayProduct; onPress
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.cream },
+  loadingRoot: { alignItems: 'center', justifyContent: 'center' },
   bgWash: { position: 'absolute', top: 0, left: 0, right: 0, height: 320 },
 
   header: { paddingHorizontal: 24, paddingBottom: 12 },
@@ -667,8 +731,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minWidth: 110,
+    justifyContent: 'center',
     ...Shadows.amberCta,
   },
+  saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { fontFamily: Fonts.sansSemibold, fontSize: 13, color: Colors.ink },
 
   scrim: { flex: 1, backgroundColor: Colors.scrim, justifyContent: 'flex-end' },
@@ -902,7 +969,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     fontSize: 15,
     color: Colors.ink,
-    marginBottom: 18,
+    marginBottom: 10,
+  },
+  renameError: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: Colors.danger,
+    marginBottom: 10,
   },
   alertActions: { flexDirection: 'row', gap: 8 },
   alertBtnGhost: {
